@@ -1,13 +1,13 @@
 <template>
-    <PdfView />
+    <Home />
 </template>
 
 <script lang="ts">
 import { Options, Vue } from "vue-class-component";
-import PdfView from "./components/pdf.vue";
+import Home from "@/views/home/index.vue";
 @Options({
     components: {
-        PdfView
+        Home
     },
 })
 export default class App extends Vue {}
@@ -25,5 +25,7 @@ body {
     font-family: Avenir, Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    height: 100%;
+    widows: 100%;
 }
 </style>
