@@ -1,27 +1,29 @@
 <template>
-  <img alt="Vue logo" src="./assets/logo.png">
-  <HelloWorld msg="Welcome to Your Vue.js + TypeScript App"/>
+    <PdfView />
 </template>
 
 <script lang="ts">
-import { Options, Vue } from 'vue-class-component';
-import HelloWorld from './components/HelloWorld.vue';
-
+import { Options, Vue } from "vue-class-component";
+import PdfView from "./components/pdf.vue";
 @Options({
-  components: {
-    HelloWorld,
-  },
+    components: {
+        PdfView
+    },
 })
 export default class App extends Vue {}
 </script>
 
 <style>
+html,
+body {
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+}
 #app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
+    font-family: Avenir, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 </style>
