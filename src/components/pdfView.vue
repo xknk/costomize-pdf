@@ -1,8 +1,9 @@
 <template>
-    <div class="pdf-view-box">
+    <div class="pdf-view-box" ref="pageRefs">
         <div>
             <div class="canvas-wrapper" v-for="(pdf, index) in pagesCount" :key="index">
                 <canvas
+                    :data-index="index"
                     class="pdf-box"
                     :ref="(el:any) => (canvasRefs['canvas' + index] = el)"
                 ></canvas>
@@ -29,8 +30,10 @@ import {
     defineProps,
     defineEmits,
     onMounted,
+    onUnmounted,
 } from "vue";
 import { useRederPdf } from "./hooks/useRederPDF";
+import { usePage } from "./hooks/usePage";
 const props = defineProps({
     scale: {
         type: Number,
@@ -40,16 +43,25 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    currenIndex: {
+        type: [String, Number],
+        default: 0,
+    },
 });
 const {
     scale,
     istThumbnail,
 }: { scale: { value: number }; istThumbnail: { value: boolean } } = toRefs(props);
-const emit = defineEmits(["getThumbnail"]); // 传递缩略图数据
+const emit = defineEmits(["getThumbnail", "getPageNum"]); // 传递缩略图数据
+const pageRefs = ref<any>(null); // 父级dom
 const canvasRefs = ref<any>([]); // pdf渲染Canvas
 const annotationCanvasRefs = ref<any>([]); // pdf-lib渲染Canvas
 const examplePdf = "file/vuejs.pdf";
 const { getPdfUrlFunc, rederPdfFunc, pagesCount, thumbnailObj } = useRederPdf();
+
+const getCanvasFunc = (event: string | number) => {
+    emit("getPageNum", event);
+};
 /**
  * @description: 初始化事件
  * @return {*}
@@ -62,8 +74,10 @@ const initFunc = async () => {
         annotationCanvasRefs.value,
         istThumbnail.value
     );
+    usePage(pageRefs.value, canvasRefs.value, pagesCount.value, getCanvasFunc);
     emit("getThumbnail", thumbnailObj.value);
 };
+
 onMounted(() => {
     initFunc();
 });
@@ -74,6 +88,7 @@ onMounted(() => {
     height: 100%;
     display: flex;
     justify-content: center;
+    overflow-y: auto;
 }
 .canvas-wrapper {
     position: relative;

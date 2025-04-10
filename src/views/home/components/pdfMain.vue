@@ -1,12 +1,17 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 17:17:26
- * @LastEditTime: 2025-04-10 11:17:25
+ * @LastEditTime: 2025-04-10 17:37:32
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\components\pdfMain.vue
 -->
 <template>
     <div class="mian-box">
-        <PdfView :istThumbnail="true" @getThumbnail="getThumbnailFunc" />
+        <PdfView
+            :istThumbnail="true"
+            @getThumbnail="getThumbnailFunc"
+            :currenIndex="currenIndex"
+            @getPageNum="getPageNumFunc"
+        />
     </div>
 </template>
 <script lang="ts">
@@ -23,9 +28,16 @@ import {
     toRefs,
     defineProps,
     defineEmits,
+    watchEffect,
 } from "vue";
 import PdfView from "@/components/pdfView.vue";
-const emits = defineEmits(["getThumbnailFunc"]);
+const emits = defineEmits(["getThumbnailFunc", "update:currenPage"]);
+const props = defineProps({
+    currenIndex: {
+        type: [String, Number],
+        default: 0,
+    },
+});
 /**
  * @description: 获取pdf缩略图
  * @return {*}
@@ -37,8 +49,10 @@ const getThumbnailFunc = ({
     thumbnail: string[];
     thumbnailInfoArr: { imgUrl: string; pageIndex: number }[];
 }) => {
-    console.log(thumbnail, 'thumbnail')
     emits("getThumbnailFunc", thumbnail);
+};
+const getPageNumFunc = (evnet: string | number) => {
+    emits("update:currenPage", evnet);
 };
 </script>
 <style scoped>

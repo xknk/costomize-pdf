@@ -1,12 +1,16 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 17:06:55
- * @LastEditTime: 2025-04-10 11:30:51
+ * @LastEditTime: 2025-04-10 17:41:24
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\components\previewPdf.vue
 -->
 <template>
     <div class="preview-pdf-box">
-        <div class="imgs-box" v-for="(item, index) in thumbnailArr" :key="index">
+        <div
+            :class="`imgs-box ${currenPage == index ? 'select-image-box' : ''}`"
+            v-for="(item, index) in thumbnailArr"
+            :key="index"
+        >
             <el-image :src="item"></el-image>
         </div>
     </div>
@@ -31,6 +35,10 @@ const props = defineProps({
         default: () => [],
         type: Array,
     },
+    currenPage: {
+        type: [String, Number],
+        default: 0,
+    },
 });
 </script>
 <style scoped>
@@ -45,7 +53,10 @@ const props = defineProps({
     margin: 1.5rem;
     box-shadow: #333 0px 1px 10px 0px;
 }
-.imgs-box:hover{
+.imgs-box:hover {
     cursor: pointer;
+}
+.select-image-box {
+    border: #333 1px solid;
 }
 </style>
