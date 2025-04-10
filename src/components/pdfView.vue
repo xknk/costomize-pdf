@@ -1,27 +1,29 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-08 10:14:02
- * @LastEditTime: 2025-04-09 11:33:43
- * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\pdf.vue
+ * @LastEditTime: 2025-04-10 11:26:09
+ * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\pdfView.vue
 -->
 <template>
     <div class="pdf-view-box">
-        <div class="canvas-wrapper" v-for="(pdf, index) in pagesCount" :key="index">
-            <!-- ref="pdfCanvas" -->
-            <canvas
-                class="pdf-box"
-                :ref="(el:any) => (canvasRefs['canvas' + index] = el)"
-            ></canvas>
-            <!-- ref="annotationCanvas" -->
-            <canvas
-                class="annotation-canvas"
-                :ref="(el:any) => (annotationcanvasRefs['annotation-canvas' + index] = el)"
-                @mousedown="(e:any)=>startDrawing(e, 'annotation-canvas' + index)"
-                @mousemove="(e:any)=>draw(e, 'annotation-canvas' + index)"
-                @mouseup="(e:any)=>stopDrawing(e, 'annotation-canvas' + index)"
-                @mouseleave="(e:any)=>stopDrawing(e, 'annotation-canvas' + index)"
-                @click="handleCanvasClick"
-            ></canvas>
+        <div>
+            <div class="canvas-wrapper" v-for="(pdf, index) in pagesCount" :key="index">
+                <!-- ref="pdfCanvas" -->
+                <canvas
+                    class="pdf-box"
+                    :ref="(el:any) => (canvasRefs['canvas' + index] = el)"
+                ></canvas>
+                <!-- ref="annotationCanvas" -->
+                <canvas
+                    class="annotation-canvas"
+                    :ref="(el:any) => (annotationcanvasRefs['annotation-canvas' + index] = el)"
+                    @mousedown="(e:any)=>startDrawing(e, 'annotation-canvas' + index)"
+                    @mousemove="(e:any)=>draw(e, 'annotation-canvas' + index)"
+                    @mouseup="(e:any)=>stopDrawing()"
+                    @mouseleave="(e:any)=>stopDrawing()"
+                    @click="handleCanvasClick"
+                ></canvas>
+            </div>
         </div>
     </div>
 </template>
@@ -45,13 +47,30 @@ import { PDFDocument } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist";
 pdfjsLib.GlobalWorkerOptions.workerSrc =
     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
-const pdfUrl = ref("");
+const props = defineProps({
+    scale: {
+        type: Number,
+        default: 1,
+    },
+    istThumbnail: {
+        type: Boolean,
+        default: false,
+    },
+});
+const {
+    scale,
+    istThumbnail,
+}: { scale: { value: number }; istThumbnail: { value: boolean } } = toRefs(props);
+
 onMounted(() => {
     initPdfFunc(examplePdf);
 });
+const emit = defineEmits(["getThumbnail"]); // 传递缩略图数据
+const pdfUrl = ref(""); // PDF转换后得地址
+
 const pdfCanvas = ref<any>(null);
 const annotationCanvas = ref<any>(null);
-let freehandLines: any = [];
+let freehandLines: any = []; // 用于存储手绘路径数据
 let pathData = "";
 let pdfDoc: any = null;
 const examplePdf = "file/vuejs.pdf";
@@ -69,36 +88,38 @@ const initPdfFunc = async (url: string) => {
     flowRenderPdf();
 };
 
-const renderPdf = async (pageNum: number = 1) => {
-    if (!pdfUrl.value || !pdfCanvas.value) return;
-    const loadingTask = pdfjsLib.getDocument(pdfUrl.value);
-    const pdf = await loadingTask.promise;
-    const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 2 });
-    pdfCanvas.value.height = viewport.height;
-    pdfCanvas.value.width = viewport.width;
-    const annotCanvas = annotationCanvas.value;
-    annotCanvas.height = viewport.height;
-    annotCanvas.width = viewport.width;
-    // 设置 canvas-wrapper 的尺寸
-    const canvas = pdfCanvas.value;
-    const wrapper = canvas.parentElement;
-    wrapper.style.width = `${viewport.width}px`;
-    wrapper.style.height = `${viewport.height}px`;
-    const renderContext = {
-        canvasContext: pdfCanvas.value.getContext("2d"),
-        viewport: viewport,
-    };
-    await page.render(renderContext).promise;
-};
+// const renderPdf = async (pageNum: number = 1) => {
+//     if (!pdfUrl.value || !pdfCanvas.value) return;
+//     const loadingTask = pdfjsLib.getDocument(pdfUrl.value);
+//     const pdf = await loadingTask.promise;
+//     const page = await pdf.getPage(pageNum);
+//     const viewport = page.getViewport({ scale: 2 });
+//     pdfCanvas.value.height = viewport.height;
+//     pdfCanvas.value.width = viewport.width;
+//     const annotCanvas = annotationCanvas.value;
+//     annotCanvas.height = viewport.height;
+//     annotCanvas.width = viewport.width;
+//     // 设置 canvas-wrapper 的尺寸
+//     const canvas = pdfCanvas.value;
+//     const wrapper = canvas.parentElement;
+//     wrapper.style.width = `${viewport.width}px`;
+//     wrapper.style.height = `${viewport.height}px`;
+//     const renderContext = {
+//         canvasContext: pdfCanvas.value.getContext("2d"),
+//         viewport: viewport,
+//     };
+//     await page.render(renderContext).promise;
+// };
 const flowRenderPdf = async () => {
-    // if (!pdfUrl.value || !pdfCanvas.value) return;
+    if (!pdfUrl.value) return;
     const loadingTask = pdfjsLib.getDocument(pdfUrl.value);
     const pdf = await loadingTask.promise;
+    const thumbnailArr: string[] = []; // 缩略图
+    const thumbnailInfoArr: { imgUrl: string; pageIndex: number }[] = [];
     pagesCount.value = pdf.numPages;
     for (let i = 1; i <= pagesCount.value; i++) {
         const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 }); // 设置合适的缩放比例
+        const viewport = page.getViewport({ scale: scale.value }); // 设置合适的缩放比例
         const canvas = canvasRefs.value["canvas" + (i - 1)]; // 获取对应的canvas元素
         const context = canvas.getContext("2d");
         canvas.height = viewport.height;
@@ -114,6 +135,20 @@ const flowRenderPdf = async () => {
             viewport: viewport,
         };
         await page.render(renderContext).promise;
+        if (istThumbnail.value) {
+            const imageUrl = canvas.toDataURL("image/png");
+            thumbnailArr.push(imageUrl);
+            thumbnailInfoArr.push({
+                imgUrl: imageUrl,
+                pageIndex: i,
+            });
+        }
+    }
+    if (istThumbnail.value) {
+        emit("getThumbnail", {
+            thumbnail: thumbnailArr,
+            thumbnailInfo: thumbnailInfoArr,
+        });
     }
 };
 const annotationMode = ref("draw"); // none, text, draw
@@ -183,6 +218,8 @@ const stopDrawing = () => {
 .pdf-view-box {
     width: 100%;
     height: 100%;
+    display: flex;
+    justify-content: center;
 }
 
 .canvas-wrapper {
