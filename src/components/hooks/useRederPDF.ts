@@ -1,8 +1,8 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-10 15:21:13
- * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\Hooks\useRederPDF.ts
+ * @LastEditTime: 2025-04-11 16:54:13
+ * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
     defineComponent,
@@ -47,7 +47,12 @@ export const useRederPdf = () => {
      * @param {boolean} istThumbnail // 是否产生缩略图
      * @return {*}
      */
-    const rederPdfFunc = async (scale: number, canvasRefs: any, annotationcanvasRefs: any, istThumbnail: boolean = false) => {
+    const rederPdfFunc = async (
+        scale: number,
+        canvasRefs: any,
+        annotationcanvasRefs: any,
+        istThumbnail: boolean = false,
+    ) => {
         if (!pdfUrl.value) return;
         const loadingTask = pdfjsLib.getDocument(pdfUrl.value);
         const pdf = await loadingTask.promise;
@@ -88,11 +93,30 @@ export const useRederPdf = () => {
             }
         }
     }
+    const setPageFunc = (pageRefs: HTMLElement | null, canvasRefs: Record<string, HTMLElement>, currenPage: number) => {
+        if (!pageRefs || !canvasRefs[`canvas${currenPage - 1}`]) return;
+        const targetScrollTop = canvasRefs[`canvas${currenPage - 1}`].offsetHeight * (currenPage - 1);
+        const startScrollTop = pageRefs.scrollTop;
+        const duration = 300; // 动画持续时间，单位毫秒
+        const startTime = performance.now();
+        const animateScroll = (currentTime: number) => {
+            const elapsedTime = currentTime - startTime;
+            if (elapsedTime < duration) {
+                const progress = elapsedTime / duration;
+                pageRefs.scrollTop = startScrollTop + (targetScrollTop - startScrollTop) * progress;
+                requestAnimationFrame(animateScroll);
+            } else {
+                pageRefs.scrollTop = targetScrollTop;
+            }
+        };
+        requestAnimationFrame(animateScroll);
+    };
     return {
         getPdfUrlFunc,
         rederPdfFunc,
         thumbnailObj,
         pdfUrl,
-        pagesCount
+        pagesCount,
+        setPageFunc
     }
 }

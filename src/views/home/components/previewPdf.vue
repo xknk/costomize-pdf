@@ -1,15 +1,16 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 17:06:55
- * @LastEditTime: 2025-04-10 17:45:58
+ * @LastEditTime: 2025-04-11 15:55:04
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\components\previewPdf.vue
 -->
 <template>
     <div class="preview-pdf-box">
         <div
-            :class="`imgs-box ${currenPage == index ? 'select-image-box' : ''}`"
+            :class="`imgs-box ${currenPage == index + 1 ? 'select-image-box' : ''}`"
             v-for="(item, index) in thumbnailArr"
             :key="index"
+            @click="setPageNumFunc(index + 1)"
         >
             <el-image :src="item"></el-image>
         </div>
@@ -30,6 +31,7 @@ import {
     defineProps,
     defineEmits,
 } from "vue";
+const emits = defineEmits(["setPageNumFunc"]);
 const props = defineProps({
     thumbnailArr: {
         default: () => [],
@@ -37,17 +39,18 @@ const props = defineProps({
     },
     currenPage: {
         type: [String, Number],
-        default: 0,
+        default: 1,
     },
 });
+
+const setPageNumFunc = (pageNum: number) => {
+    emits("setPageNumFunc", pageNum);
+};
 </script>
 <style scoped>
 .preview-pdf-box {
-    width: 23rem;
+    width: auto;
     height: 100%;
-    overflow: auto;
-    background-color: #f5f5f5;
-    border-right: 1px solid #c2c2c2;
 }
 .imgs-box {
     margin: 1.5rem;

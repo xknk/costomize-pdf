@@ -1,20 +1,27 @@
 <template>
     <div class="top-option-box">
-        <div class="one-option-box">
+        <div class="one-option-box" @click="hideLeftFunc()">
             <i class="iconfont icon-suolvetu one-icon-box"></i>
         </div>
         <div class="one-option-box">
-            <i class="iconfont icon-icon-arrow-top2 two-icon-box"></i>
-            <i class="iconfont icon-icon-arrow-bottom2 two-icon-box"></i>
+            <i
+                class="iconfont icon-icon-arrow-top2 two-icon-box"
+                @click="optionPreviewFunc('up')"
+            ></i>
+            <i
+                class="iconfont icon-icon-arrow-bottom2 two-icon-box"
+                @click="optionPreviewFunc('down')"
+            ></i>
             <div class="page-box">
                 <el-input
                     v-model="pageObj.pageSize"
                     placeholder="页数"
                     class="el-input"
                     size="small"
+                    @input="debounceChangeSizeFunc"
                 >
                 </el-input>
-                <span class="page-total-box">/ {{ pageObj.total }}页 </span>
+                <span class="page-total-box">/ {{ total }}页 </span>
             </div>
         </div>
         <div class="one-option-box">
@@ -79,10 +86,31 @@ import {
     toRefs,
     defineProps,
     defineEmits,
+    watch,
 } from "vue";
 import { fontOptions, iconOptions, revokeOptions, downOptions } from "./config";
+import { debounce } from "@/utils";
+
+const emits = defineEmits(["changeSizeFunc", "hideLeftFunc", "optionPreviewFunc"]);
+const props = defineProps({
+    currenPage: {
+        type: [String, Number],
+        default: 1,
+    },
+    total: {
+        type: Number,
+        default: 1,
+    },
+});
+const { currenPage, total } = toRefs(props);
+watch(
+    () => currenPage.value,
+    (event: number | string) => {
+        pageObj.value.pageSize = +currenPage.value;
+    }
+);
 const pageObj = ref<{
-    pageSize: number;
+    pageSize: number | string;
     total: number;
 }>({
     pageSize: 1,
@@ -95,7 +123,30 @@ const configObj = ref<{
     fontSize: 12,
     fontColor: "#000000",
 });
+
+const changeSizeFunc = (e: any) => {
+    let value = e;
+    if (value) {
+        value = value.replace(/[^\d]/g, "");
+        value = Number(value);
+        if (value <= 0) {
+            value = 1;
+        }
+        if (value >= total.value) {
+            value = total.value;
+        }
+        pageObj.value.pageSize = value;
+        emits("changeSizeFunc", pageObj.value.pageSize);
+    }
+};
+const debounceChangeSizeFunc = debounce(changeSizeFunc, 300)
+const optionPreviewFunc = (type: string) => {
+    emits("optionPreviewFunc", type);
+};
 const selectIcon = ref<string>("icon-shou");
+const hideLeftFunc = () => {
+    emits("hideLeftFunc");
+};
 </script>
 <style scoped>
 .top-option-box {
@@ -109,7 +160,6 @@ const selectIcon = ref<string>("icon-shou");
     box-sizing: border-box;
     overflow: auto;
     background-color: #f5f5f5;
-
 }
 .one-option-box {
     display: flex;

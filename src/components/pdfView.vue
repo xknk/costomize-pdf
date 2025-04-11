@@ -31,9 +31,11 @@ import {
     defineEmits,
     onMounted,
     onUnmounted,
+    watch,
 } from "vue";
 import { useRederPdf } from "./hooks/useRederPDF";
-import { usePage } from "./hooks/usePage";
+import { useMountObserve } from "./hooks/useMountObserve";
+import { debounce } from "@/utils";
 const props = defineProps({
     scale: {
         type: Number,
@@ -43,22 +45,30 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
-    currenIndex: {
-        type: [String, Number],
-        default: 0,
+    pageNum: {
+        type: Number,
+        default: 1,
     },
 });
 const {
     scale,
     istThumbnail,
-}: { scale: { value: number }; istThumbnail: { value: boolean } } = toRefs(props);
-const emit = defineEmits(["getThumbnail", "getPageNum"]); // 传递缩略图数据
+}: {
+    scale: { value: number };
+    istThumbnail: { value: boolean };
+} = toRefs(props);
+const emit = defineEmits(["getThumbnail", "getPageNum", "mountPdf"]); // 传递缩略图数据
 const pageRefs = ref<any>(null); // 父级dom
 const canvasRefs = ref<any>([]); // pdf渲染Canvas
 const annotationCanvasRefs = ref<any>([]); // pdf-lib渲染Canvas
 const examplePdf = "file/vuejs.pdf";
-const { getPdfUrlFunc, rederPdfFunc, pagesCount, thumbnailObj } = useRederPdf();
-
+const {
+    getPdfUrlFunc,
+    rederPdfFunc,
+    pagesCount,
+    thumbnailObj,
+    setPageFunc,
+} = useRederPdf();
 const getCanvasFunc = (event: string | number) => {
     emit("getPageNum", event);
 };
@@ -74,10 +84,28 @@ const initFunc = async () => {
         annotationCanvasRefs.value,
         istThumbnail.value
     );
-    usePage(pageRefs.value, canvasRefs.value, pagesCount.value, getCanvasFunc);
+    useMountObserve(
+        pageRefs.value,
+        canvasRefs.value,
+        pagesCount.value,
+        debounce(getCanvasFunc, 300)
+    );
     emit("getThumbnail", thumbnailObj.value);
+    emit("mountPdf", {
+        pageRefs: pageRefs.value,
+        canvasRefs: canvasRefs.value,
+        annotationCanvasRefs: annotationCanvasRefs.value,
+        pagesCount: pagesCount.value,
+        scale: scale.value,
+    });
 };
 
+const setPage = (currenPage: number) => {
+    setPageFunc(pageRefs.value, canvasRefs.value, currenPage);
+};
+defineExpose({
+    setPage: debounce(setPage, 500),
+});
 onMounted(() => {
     initFunc();
 });
