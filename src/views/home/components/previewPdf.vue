@@ -1,7 +1,7 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 17:06:55
- * @LastEditTime: 2025-04-10 17:41:24
+ * @LastEditTime: 2025-04-10 17:45:58
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\components\previewPdf.vue
 -->
 <template>
@@ -52,11 +52,17 @@ const props = defineProps({
 .imgs-box {
     margin: 1.5rem;
     box-shadow: #333 0px 1px 10px 0px;
+    padding: 1px;
 }
 .imgs-box:hover {
     cursor: pointer;
+    border: #333 1px solid;
+    box-sizing: border-box;
+    padding: 0px;
 }
 .select-image-box {
     border: #333 1px solid;
+    box-sizing: border-box;
+    padding: 0px;
 }
 </style>
