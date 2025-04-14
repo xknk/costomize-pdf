@@ -1,7 +1,7 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 13:52:46
- * @LastEditTime: 2025-04-11 16:34:37
+ * @LastEditTime: 2025-04-14 14:28:03
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\index.vue
 -->
 <template>
@@ -12,6 +12,7 @@
             @changeSizeFunc="setPageNumFunc"
             @hideLeftFunc="hidePreviewPdfFunc"
             @optionPreviewFunc="optionPreviewFunc"
+            @selectOptionFunc="selectOptionFunc"
         />
         <div class="home-main-box">
             <div
@@ -31,6 +32,7 @@
                     @getThumbnail="getThumbnailFunc"
                     @getPageNum="getPageNumFunc"
                     @mountPdf="initPdfFunc"
+                    :drawConfig="optionObj"
                 />
             </div>
             <OptionHostory />
@@ -63,6 +65,15 @@ const total = ref<number>(1);
 const pdfDom = ref<any>(null);
 const previewDom = ref<any>(null);
 const isReviewPdf = ref<boolean>(true);
+const annotationCanvasRefs = ref<any>(null);
+type optionTs = {
+    type: string;
+    fontConfigObj: {
+        fontSize: number;
+        fontColor: string;
+    };
+};
+const optionObj = ref<optionTs>({});
 const getThumbnailFunc = ({
     thumbnail,
     thumbnailInfoArr,
@@ -93,6 +104,7 @@ const initPdfFunc = ({
     scale: number;
 }) => {
     total.value = pagesCount;
+    annotationCanvasRefs.value = annotationCanvasRefs;
     pdfDom.value.setPage(currenPage.value);
 };
 const hidePreviewPdfFunc = () => {
@@ -131,6 +143,9 @@ const optionPreviewFunc = (type: string) => {
         }
     };
     window.requestAnimationFrame(animateScroll);
+};
+const selectOptionFunc = (event: optionTs) => {
+    optionObj.value = event;
 };
 </script>
 <style scoped>

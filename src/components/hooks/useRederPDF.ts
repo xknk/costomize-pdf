@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-11 16:54:13
+ * @LastEditTime: 2025-04-14 11:14:42
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -63,6 +63,7 @@ export const useRederPdf = () => {
             const page = await pdf.getPage(i);
             const viewport = page.getViewport({ scale }); // 设置合适的缩放比例
             const canvas = canvasRefs["canvas" + (i - 1)]; // 获取对应的canvas元素
+            if (!canvas) break;
             const context = canvas.getContext("2d");
             canvas.height = viewport.height;
             canvas.width = viewport.width;

@@ -24,13 +24,36 @@
                 <span class="page-total-box">/ {{ total }}页 </span>
             </div>
         </div>
-        <div class="one-option-box">
-            <span class="font-title-box">字体大小</span>
+        <div
+            class="one-option-box"
+            v-if="
+                selectIcon === 'draw' || selectIcon === 'round' || selectIcon === 'rect'
+            "
+        >
+            <span class="font-title-box">线条宽度</span>
             <el-select
-                v-model="configObj.fontSize"
+                v-model="fontConfigObj.lineWidth"
                 placeholder="Select"
                 style="width: 240px"
                 size="small"
+                @change="selectOptionFunc({ type: selectIcon })"
+            >
+                <el-option
+                    v-for="item in lineOptions"
+                    :key="item.value"
+                    :label="item.value"
+                    :value="item.value"
+                />
+            </el-select>
+        </div>
+        <div class="one-option-box" v-else>
+            <span class="font-title-box">字体大小</span>
+            <el-select
+                v-model="fontConfigObj.fontSize"
+                placeholder="Select"
+                style="width: 240px"
+                size="small"
+                @change="selectOptionFunc({ type: selectIcon })"
             >
                 <el-option
                     v-for="item in fontOptions"
@@ -40,23 +63,37 @@
                 />
             </el-select>
         </div>
-        <div class="one-option-box">
+        <div
+            class="one-option-box"
+            v-if="
+                selectIcon === 'draw' || selectIcon === 'round' || selectIcon === 'rect'
+            "
+        >
             <span class="font-title-box">颜色</span>
-            <el-color-picker v-model="configObj.fontColor" />
+            <el-color-picker
+                @change="selectOptionFunc({ type: selectIcon })"
+                v-model="fontConfigObj.lineColor"
+            />
+        </div>
+        <div class="one-option-box" v-else>
+            <span class="font-title-box">颜色</span>
+            <el-color-picker
+                @change="selectOptionFunc({ type: selectIcon })"
+                v-model="fontConfigObj.fontColor"
+            />
         </div>
         <div class="tow-option-box">
             <div
                 class="icons-box"
                 v-for="item in iconOptions"
-                @click="selectIcon = item.icon"
-                :key="item.icon"
+                @click="selectOptionFunc(item)"
+                :key="item.type"
             >
                 <i
                     class="iconfont"
                     :class="`${item.icon} ${item.class} ${
-                        selectIcon == item.icon ? 'select-icon-box' : ''
+                        selectIcon == item.type ? 'select-icon-box' : ''
                     }`"
-                    @click="selectIcon = item.icon"
                 ></i>
             </div>
         </div>
@@ -88,10 +125,21 @@ import {
     defineEmits,
     watch,
 } from "vue";
-import { fontOptions, iconOptions, revokeOptions, downOptions } from "./config";
+import {
+    fontOptions,
+    iconOptions,
+    revokeOptions,
+    downOptions,
+    lineOptions,
+} from "./config";
 import { debounce } from "@/utils";
 
-const emits = defineEmits(["changeSizeFunc", "hideLeftFunc", "optionPreviewFunc"]);
+const emits = defineEmits([
+    "changeSizeFunc",
+    "hideLeftFunc",
+    "optionPreviewFunc",
+    "selectOptionFunc",
+]);
 const props = defineProps({
     currenPage: {
         type: [String, Number],
@@ -116,12 +164,16 @@ const pageObj = ref<{
     pageSize: 1,
     total: 10,
 });
-const configObj = ref<{
+const fontConfigObj = ref<{
     fontSize: number;
     fontColor: string;
+    lineWidth: number;
+    lineColor: string;
 }>({
     fontSize: 12,
     fontColor: "#000000",
+    lineWidth: 1,
+    lineColor: "red",
 });
 
 const changeSizeFunc = (e: any) => {
@@ -139,13 +191,17 @@ const changeSizeFunc = (e: any) => {
         emits("changeSizeFunc", pageObj.value.pageSize);
     }
 };
-const debounceChangeSizeFunc = debounce(changeSizeFunc, 300)
+const debounceChangeSizeFunc = debounce(changeSizeFunc, 300);
 const optionPreviewFunc = (type: string) => {
     emits("optionPreviewFunc", type);
 };
-const selectIcon = ref<string>("icon-shou");
+const selectIcon = ref<string>("");
 const hideLeftFunc = () => {
     emits("hideLeftFunc");
+};
+const selectOptionFunc = ({ type }: { icon: string; type: string }) => {
+    selectIcon.value = type;
+    emits("selectOptionFunc", { type, ...fontConfigObj.value });
 };
 </script>
 <style scoped>

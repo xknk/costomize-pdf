@@ -10,6 +10,10 @@
                 <canvas
                     class="annotation-canvas"
                     :ref="(el:any) => (annotationCanvasRefs['annotation-canvas' + index] = el)"
+                    @mousedown="(e:any)=>startDrawingFunc(e, 'annotation-canvas' + index)"
+                    @mousemove="(e:any)=>drawDrawingFunc(e, 'annotation-canvas' + index)"
+                    @mouseup="(e:any)=>stopDrawingFunc()"
+                    @mouseleave="(e:any)=>stopDrawingFunc()"
                 ></canvas>
             </div>
         </div>
@@ -35,6 +39,7 @@ import {
 } from "vue";
 import { useRederPdf } from "./hooks/useRederPDF";
 import { useMountObserve } from "./hooks/useMountObserve";
+import { useLine } from "./hooks/useLine.ts";
 import { debounce } from "@/utils";
 const props = defineProps({
     scale: {
@@ -49,15 +54,31 @@ const props = defineProps({
         type: Number,
         default: 1,
     },
+    drawConfig: {
+        type: Object,
+        default: {
+            type: "none",
+            fontSize: "12",
+            color: "red",
+        },
+    },
 });
 const {
     scale,
     istThumbnail,
+    drawConfig,
 }: {
     scale: { value: number };
     istThumbnail: { value: boolean };
+    drawConfig: {
+        value: {
+            type: string;
+            fontSize: string | number;
+            color: string;
+        };
+    };
 } = toRefs(props);
-const emit = defineEmits(["getThumbnail", "getPageNum", "mountPdf"]); // 传递缩略图数据
+const emit = defineEmits(["getThumbnail", "getPageNum", "mountPdf", "stopDrawing"]); // 传递缩略图数据
 const pageRefs = ref<any>(null); // 父级dom
 const canvasRefs = ref<any>([]); // pdf渲染Canvas
 const annotationCanvasRefs = ref<any>([]); // pdf-lib渲染Canvas
@@ -69,6 +90,7 @@ const {
     thumbnailObj,
     setPageFunc,
 } = useRederPdf();
+const { startLine, drawLine, stopDrwa, startRound, drawRound } = useLine();
 const getCanvasFunc = (event: string | number) => {
     emit("getPageNum", event);
 };
@@ -103,11 +125,66 @@ const initFunc = async () => {
 const setPage = (currenPage: number) => {
     setPageFunc(pageRefs.value, canvasRefs.value, currenPage);
 };
-defineExpose({
-    setPage: debounce(setPage, 500),
-});
 onMounted(() => {
     initFunc();
+});
+/**
+ * @description: 开始画线
+ * @return {*}
+ */
+const startDrawingFunc = (e: any, rowKey: string, index: number | string) => {
+    if (drawConfig.value.type === "draw") {
+        startLine(
+            e,
+            annotationCanvasRefs.value[rowKey],
+            drawConfig.value.lineColor,
+            drawConfig.value.lineWidth,
+            index
+        );
+    } else {
+        startRound(
+            e,
+            annotationCanvasRefs.value[rowKey],
+            drawConfig.value.lineColor,
+            drawConfig.value.lineWidth,
+            index
+        );
+        // console.log();
+    }
+};
+/**
+ * @description: 画线
+ * @return {*}
+ */
+const drawDrawingFunc = (e: any, rowKey: string, index: number | string) => {
+    if (drawConfig.value.type === "draw") {
+        drawLine(
+            e,
+            annotationCanvasRefs.value[rowKey],
+            drawConfig.value.lineColor,
+            drawConfig.value.lineWidth,
+            index
+        );
+    } else {
+        drawRound(
+            e,
+            annotationCanvasRefs.value[rowKey],
+            drawConfig.value.lineColor,
+            drawConfig.value.lineWidth,
+            index
+        );
+    }
+};
+/**
+ * @description: 结束画线
+ * @return {*}
+ */
+const stopDrawingFunc = () => {
+    const data = stopDrwa();
+    emit("stopDrawing", data);
+};
+defineExpose({
+    setPage: debounce(setPage, 500),
 });
 </script>
 <style scoped>
