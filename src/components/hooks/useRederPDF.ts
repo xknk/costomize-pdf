@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-14 11:14:42
+ * @LastEditTime: 2025-04-15 13:53:15
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -16,6 +16,7 @@ import {
 } from "vue";
 import { PDFDocument } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist";
+import { fabric } from 'fabric';
 pdfjsLib.GlobalWorkerOptions.workerSrc =
     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
 interface TsThumbnail {
@@ -27,6 +28,7 @@ export const useRederPdf = () => {
     const pdfUrl = ref<string>("")
     const pagesCount = ref<number>(0)
     const thumbnailObj = ref<TsThumbnail | null>(null)
+    let fabricCanvasObj = ref<{ [id: string]: any }>({})
     /**
      * @description: 获取pdfUrl
      * @param {string} url
@@ -43,15 +45,17 @@ export const useRederPdf = () => {
      * @description: 渲染pdf与pdf-lib
      * @param {number} scale // 放大倍数
      * @param {any} canvasRefs // pdfCanvas
-     * @param {any} annotationcanvasRefs // pdf-lib渲染Canvas
      * @param {boolean} istThumbnail // 是否产生缩略图
      * @return {*}
      */
     const rederPdfFunc = async (
         scale: number,
         canvasRefs: any,
-        annotationcanvasRefs: any,
         istThumbnail: boolean = false,
+        startLine: Function,
+        drawLine: Function,
+        stopDrwa: Function,
+        addText: Function
     ) => {
         if (!pdfUrl.value) return;
         const loadingTask = pdfjsLib.getDocument(pdfUrl.value);
@@ -67,9 +71,32 @@ export const useRederPdf = () => {
             const context = canvas.getContext("2d");
             canvas.height = viewport.height;
             canvas.width = viewport.width;
-            const annotCanvas = annotationcanvasRefs["annotation-canvas" + (i - 1)];
-            annotCanvas.height = viewport.height;
-            annotCanvas.width = viewport.width;
+            const fabricCanvas = new fabric.Canvas(`annotation-canvas${i - 1}`, {
+                width: viewport.width,
+                height: viewport.height,
+                isDrawingMode: false,
+                // backgroundColor: 'transparent' 
+            })
+            fabricCanvas.selectionColor = 'transparent'
+            fabricCanvas.selectionBorderColor = 'transparent'
+            // fabricCanvas.skipTargetFind = true // 禁止选中
+            fabricCanvas.on('mouse:down', startLine.bind(fabricCanvas, {
+                page: i - 1,
+                canvas: fabricCanvas,
+            })) // 鼠标在画布上按下
+            fabricCanvas.on('mouse:move', drawLine.bind(fabricCanvas, {
+                page: i - 1,
+                canvas: fabricCanvas,
+            })) // 鼠标在画布上移动
+            fabricCanvas.on('mouse:up', stopDrwa.bind(fabricCanvas, {
+                page: i - 1,
+                canvas: fabricCanvas,
+            })) // 鼠标在画布上移动
+            // fabricCanvas.on('mouse:dblclick', addText.bind(fabricCanvas, {
+            //     page: i - 1,
+            //     canvas: fabricCanvas,
+            // }))
+            fabricCanvasObj.value[`annotation-canvas${i - 1}`] = fabricCanvas
             const wrapper = canvas.parentElement;
             wrapper.style.width = `${viewport.width}px`;
             wrapper.style.height = `${viewport.height}px`;
@@ -118,6 +145,7 @@ export const useRederPdf = () => {
         thumbnailObj,
         pdfUrl,
         pagesCount,
-        setPageFunc
+        setPageFunc,
+        fabricCanvasObj
     }
 }

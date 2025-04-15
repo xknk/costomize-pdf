@@ -199,7 +199,7 @@ const selectIcon = ref<string>("");
 const hideLeftFunc = () => {
     emits("hideLeftFunc");
 };
-const selectOptionFunc = ({ type }: { icon: string; type: string }) => {
+const selectOptionFunc = ({ type }: { icon?: string; type: string }) => {
     selectIcon.value = type;
     emits("selectOptionFunc", { type, ...fontConfigObj.value });
 };

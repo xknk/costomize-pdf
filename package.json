@@ -7,8 +7,10 @@
     "build": "vue-cli-service build"
   },
   "dependencies": {
+    "@types/fabric": "^5.3.10",
     "core-js": "^3.6.5",
     "element-plus": "^2.9.7",
+    "fabric": "^5.5.2",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "2.16.105",
     "pdflib-fontkit": "^1.8.11",

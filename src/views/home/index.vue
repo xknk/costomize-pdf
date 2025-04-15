@@ -65,7 +65,6 @@ const total = ref<number>(1);
 const pdfDom = ref<any>(null);
 const previewDom = ref<any>(null);
 const isReviewPdf = ref<boolean>(true);
-const annotationCanvasRefs = ref<any>(null);
 type optionTs = {
     type: string;
     fontConfigObj: {
@@ -93,18 +92,15 @@ const getPageNumFunc = (event: string | number) => {
 const initPdfFunc = ({
     pageRefs,
     canvasRefs,
-    annotationCanvasRefs,
     pagesCount,
     scale,
 }: {
     pageRefs: HTMLElement;
     canvasRefs: HTMLElement;
-    annotationCanvasRefs: HTMLElement;
     pagesCount: number;
     scale: number;
 }) => {
     total.value = pagesCount;
-    annotationCanvasRefs.value = annotationCanvasRefs;
     pdfDom.value.setPage(currenPage.value);
 };
 const hidePreviewPdfFunc = () => {

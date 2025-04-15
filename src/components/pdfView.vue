@@ -9,11 +9,7 @@
                 ></canvas>
                 <canvas
                     class="annotation-canvas"
-                    :ref="(el:any) => (annotationCanvasRefs['annotation-canvas' + index] = el)"
-                    @mousedown="(e:any)=>startDrawingFunc(e, 'annotation-canvas' + index)"
-                    @mousemove="(e:any)=>drawDrawingFunc(e, 'annotation-canvas' + index)"
-                    @mouseup="(e:any)=>stopDrawingFunc()"
-                    @mouseleave="(e:any)=>stopDrawingFunc()"
+                    :id="`annotation-canvas${index}`"
                 ></canvas>
             </div>
         </div>
@@ -39,8 +35,9 @@ import {
 } from "vue";
 import { useRederPdf } from "./hooks/useRederPDF";
 import { useMountObserve } from "./hooks/useMountObserve";
-import { useLine } from "./hooks/useLine.ts";
+import { useLine } from "./hooks/useLine";
 import { debounce } from "@/utils";
+
 const props = defineProps({
     scale: {
         type: Number,
@@ -71,17 +68,12 @@ const {
     scale: { value: number };
     istThumbnail: { value: boolean };
     drawConfig: {
-        value: {
-            type: string;
-            fontSize: string | number;
-            color: string;
-        };
+        value: any;
     };
 } = toRefs(props);
 const emit = defineEmits(["getThumbnail", "getPageNum", "mountPdf", "stopDrawing"]); // 传递缩略图数据
 const pageRefs = ref<any>(null); // 父级dom
 const canvasRefs = ref<any>([]); // pdf渲染Canvas
-const annotationCanvasRefs = ref<any>([]); // pdf-lib渲染Canvas
 const examplePdf = "file/vuejs.pdf";
 const {
     getPdfUrlFunc,
@@ -89,8 +81,9 @@ const {
     pagesCount,
     thumbnailObj,
     setPageFunc,
-} = useRederPdf();
-const { startLine, drawLine, stopDrwa, startRound, drawRound } = useLine();
+    fabricCanvasObj,
+}: any = useRederPdf();
+const { startLine, drawLine, stopDrwa, addText } = useLine(drawConfig);
 const getCanvasFunc = (event: string | number) => {
     emit("getPageNum", event);
 };
@@ -103,8 +96,11 @@ const initFunc = async () => {
     await rederPdfFunc(
         scale.value,
         canvasRefs.value,
-        annotationCanvasRefs.value,
-        istThumbnail.value
+        istThumbnail.value,
+        startLine,
+        drawLine,
+        stopDrwa,
+        addText
     );
     useMountObserve(
         pageRefs.value,
@@ -116,7 +112,6 @@ const initFunc = async () => {
     emit("mountPdf", {
         pageRefs: pageRefs.value,
         canvasRefs: canvasRefs.value,
-        annotationCanvasRefs: annotationCanvasRefs.value,
         pagesCount: pagesCount.value,
         scale: scale.value,
     });
@@ -128,61 +123,6 @@ const setPage = (currenPage: number) => {
 onMounted(() => {
     initFunc();
 });
-/**
- * @description: 开始画线
- * @return {*}
- */
-const startDrawingFunc = (e: any, rowKey: string, index: number | string) => {
-    if (drawConfig.value.type === "draw") {
-        startLine(
-            e,
-            annotationCanvasRefs.value[rowKey],
-            drawConfig.value.lineColor,
-            drawConfig.value.lineWidth,
-            index
-        );
-    } else {
-        startRound(
-            e,
-            annotationCanvasRefs.value[rowKey],
-            drawConfig.value.lineColor,
-            drawConfig.value.lineWidth,
-            index
-        );
-        // console.log();
-    }
-};
-/**
- * @description: 画线
- * @return {*}
- */
-const drawDrawingFunc = (e: any, rowKey: string, index: number | string) => {
-    if (drawConfig.value.type === "draw") {
-        drawLine(
-            e,
-            annotationCanvasRefs.value[rowKey],
-            drawConfig.value.lineColor,
-            drawConfig.value.lineWidth,
-            index
-        );
-    } else {
-        drawRound(
-            e,
-            annotationCanvasRefs.value[rowKey],
-            drawConfig.value.lineColor,
-            drawConfig.value.lineWidth,
-            index
-        );
-    }
-};
-/**
- * @description: 结束画线
- * @return {*}
- */
-const stopDrawingFunc = () => {
-    const data = stopDrwa();
-    emit("stopDrawing", data);
-};
 defineExpose({
     setPage: debounce(setPage, 500),
 });
@@ -212,7 +152,6 @@ canvas {
     z-index: -1;
 }
 .annotation-canvas {
-    z-index: 2;
     width: 100%;
     height: 100%;
     position: absolute;
