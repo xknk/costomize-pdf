@@ -1,7 +1,7 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 13:52:46
- * @LastEditTime: 2025-04-14 14:28:03
+ * @LastEditTime: 2025-04-15 16:16:39
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\index.vue
 -->
 <template>
@@ -13,6 +13,7 @@
             @hideLeftFunc="hidePreviewPdfFunc"
             @optionPreviewFunc="optionPreviewFunc"
             @selectOptionFunc="selectOptionFunc"
+            @saveFunc="saveFunc"
         />
         <div class="home-main-box">
             <div
@@ -33,6 +34,7 @@
                     @getPageNum="getPageNumFunc"
                     @mountPdf="initPdfFunc"
                     :drawConfig="optionObj"
+                    :url="examplePdf"
                 />
             </div>
             <OptionHostory />
@@ -65,6 +67,8 @@ const total = ref<number>(1);
 const pdfDom = ref<any>(null);
 const previewDom = ref<any>(null);
 const isReviewPdf = ref<boolean>(true);
+const examplePdf = ref<string>("file/vuejs.pdf");
+
 type optionTs = {
     type: string;
     fontConfigObj: {
@@ -72,7 +76,13 @@ type optionTs = {
         fontColor: string;
     };
 };
-const optionObj = ref<optionTs>({});
+const optionObj = ref<optionTs>({
+    type: "",
+    fontConfigObj: {
+        fontSize: 0,
+        fontColor: "",
+    },
+});
 const getThumbnailFunc = ({
     thumbnail,
     thumbnailInfoArr,
@@ -142,6 +152,22 @@ const optionPreviewFunc = (type: string) => {
 };
 const selectOptionFunc = (event: optionTs) => {
     optionObj.value = event;
+};
+const saveFunc = async ({ type }: { type: string }) => {
+    if (type === "save") {
+        const jsonObj = await pdfDom.value.getJson(type);
+        console.log(jsonObj, "jsonObj");
+    } else {
+        const downUrl = await pdfDom.value.getDownUrl(type);
+        console.log(downUrl, "downUrl");
+        // const link = document.createElement('a');
+        // link.href = url;
+        // link.download = `annotated-pdf.pdf`;
+        // // 触发下载
+        // document.body.appendChild(link);
+        // link.click();
+        // document.body.removeChild(link);
+    }
 };
 </script>
 <style scoped>

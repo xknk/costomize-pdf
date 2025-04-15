@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-09 16:41:37
- * @LastEditTime: 2025-04-14 14:45:49
+ * @LastEditTime: 2025-04-15 15:53:10
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\components\config.ts
  */
 export const lineOptions = [
@@ -59,18 +59,18 @@ export const fontOptions = [
     { value: 50 },
 ];
 export const iconOptions = [
-    { icon: 'icon-shou', class: 'tree-icon-box', type: 'gesture' },
+    // { icon: 'icon-shou', class: 'tree-icon-box', type: 'gesture' },
     { icon: 'icon-bianji', class: 'tree-icon-box', type: 'draw' },
     { icon: 'icon-zitishezhi', class: 'tree-icon-box', type: 'text', },
     { icon: 'icon-yuanxingweixuanzhong', class: 'tree-icon-box', type: 'round' },
     { icon: 'icon-juxing', class: 'one-icon-box', type: 'rect', },
-    { icon: 'icon-relieve-full', class: 'tree-icon-box', type: 'peg' },
-    { icon: 'icon-tupian', class: 'tree-icon-box', type: 'image' },
+    // { icon: 'icon-relieve-full', class: 'tree-icon-box', type: 'peg' },
+    // { icon: 'icon-tupian', class: 'tree-icon-box', type: 'image' },
 ]
 
 export const revokeOptions = [
-    { icon: 'icon-chehui two-icon-box', type: 'revoke' },
-    { icon: 'icon-fanchehui tree-icon-box', type: 'reverse_revoke' },
+    // { icon: 'icon-chehui two-icon-box', type: 'revoke' },
+    // { icon: 'icon-fanchehui tree-icon-box', type: 'reverse_revoke' },
 ]
 
 export const downOptions = [

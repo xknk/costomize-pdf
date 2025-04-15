@@ -9,7 +9,7 @@
                 ></canvas>
                 <canvas
                     class="annotation-canvas"
-                    :id="`annotation-canvas${index}`"
+                    :id="`annotation-canvas_${index}`"
                 ></canvas>
             </div>
         </div>
@@ -36,6 +36,7 @@ import {
 import { useRederPdf } from "./hooks/useRederPDF";
 import { useMountObserve } from "./hooks/useMountObserve";
 import { useLine } from "./hooks/useLine";
+import { useSave } from "./hooks/useSave";
 import { debounce } from "@/utils";
 
 const props = defineProps({
@@ -59,22 +60,29 @@ const props = defineProps({
             color: "red",
         },
     },
+    url: {
+        type: String,
+        default: "",
+    },
 });
 const {
     scale,
     istThumbnail,
     drawConfig,
+    url,
 }: {
     scale: { value: number };
     istThumbnail: { value: boolean };
     drawConfig: {
         value: any;
     };
+    url: {
+        value: string;
+    };
 } = toRefs(props);
 const emit = defineEmits(["getThumbnail", "getPageNum", "mountPdf", "stopDrawing"]); // 传递缩略图数据
 const pageRefs = ref<any>(null); // 父级dom
 const canvasRefs = ref<any>([]); // pdf渲染Canvas
-const examplePdf = "file/vuejs.pdf";
 const {
     getPdfUrlFunc,
     rederPdfFunc,
@@ -84,6 +92,7 @@ const {
     fabricCanvasObj,
 }: any = useRederPdf();
 const { startLine, drawLine, stopDrwa, addText } = useLine(drawConfig);
+const { save, down } = useSave();
 const getCanvasFunc = (event: string | number) => {
     emit("getPageNum", event);
 };
@@ -92,7 +101,7 @@ const getCanvasFunc = (event: string | number) => {
  * @return {*}
  */
 const initFunc = async () => {
-    await getPdfUrlFunc(examplePdf);
+    await getPdfUrlFunc(url.value);
     await rederPdfFunc(
         scale.value,
         canvasRefs.value,
@@ -120,11 +129,22 @@ const initFunc = async () => {
 const setPage = (currenPage: number) => {
     setPageFunc(pageRefs.value, canvasRefs.value, currenPage);
 };
+
+const getJson = () => {
+    const jsonObj = save(fabricCanvasObj.value);
+    return jsonObj;
+};
+const getDownUrl = async () => {
+    const newUrl = await down(url.value, fabricCanvasObj.value);
+    return newUrl;
+};
 onMounted(() => {
     initFunc();
 });
 defineExpose({
     setPage: debounce(setPage, 500),
+    getJson: getJson,
+    getDownUrl: getDownUrl,
 });
 </script>
 <style scoped>

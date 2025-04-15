@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-15 13:53:15
+ * @LastEditTime: 2025-04-15 15:58:15
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -71,7 +71,7 @@ export const useRederPdf = () => {
             const context = canvas.getContext("2d");
             canvas.height = viewport.height;
             canvas.width = viewport.width;
-            const fabricCanvas = new fabric.Canvas(`annotation-canvas${i - 1}`, {
+            const fabricCanvas = new fabric.Canvas(`annotation-canvas_${i - 1}`, {
                 width: viewport.width,
                 height: viewport.height,
                 isDrawingMode: false,
@@ -96,7 +96,7 @@ export const useRederPdf = () => {
             //     page: i - 1,
             //     canvas: fabricCanvas,
             // }))
-            fabricCanvasObj.value[`annotation-canvas${i - 1}`] = fabricCanvas
+            fabricCanvasObj.value[`annotation-canvas_${i - 1}`] = fabricCanvas
             const wrapper = canvas.parentElement;
             wrapper.style.width = `${viewport.width}px`;
             wrapper.style.height = `${viewport.height}px`;

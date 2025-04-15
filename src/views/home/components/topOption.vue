@@ -97,13 +97,13 @@
                 ></i>
             </div>
         </div>
-        <div class="one-option-box">
+        <!-- <div class="one-option-box">
             <div v-for="item in revokeOptions" :key="item.icon">
                 <i :class="`iconfont ${item.icon}`"></i>
             </div>
-        </div>
+        </div> -->
         <div class="one-option-box">
-            <div v-for="item in downOptions" :key="item.icon">
+            <div v-for="item in downOptions" :key="item.icon" @click="saveFunc(item)">
                 <i :class="`iconfont ${item.icon}`"></i>
             </div>
         </div>
@@ -139,6 +139,7 @@ const emits = defineEmits([
     "hideLeftFunc",
     "optionPreviewFunc",
     "selectOptionFunc",
+    "saveFunc",
 ]);
 const props = defineProps({
     currenPage: {
@@ -202,6 +203,9 @@ const hideLeftFunc = () => {
 const selectOptionFunc = ({ type }: { icon?: string; type: string }) => {
     selectIcon.value = type;
     emits("selectOptionFunc", { type, ...fontConfigObj.value });
+};
+const saveFunc = ({ type }: { icon?: string; type: string }) => {
+    emits("saveFunc", { type });
 };
 </script>
 <style scoped>
