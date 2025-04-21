@@ -64,12 +64,17 @@ const props = defineProps({
         type: String,
         default: "",
     },
+    jsonData: {
+        type: Object,
+        default: () => {},
+    },
 });
 const {
     scale,
     istThumbnail,
     drawConfig,
     url,
+    jsonData,
 }: {
     scale: { value: number };
     istThumbnail: { value: boolean };
@@ -79,6 +84,7 @@ const {
     url: {
         value: string;
     };
+    jsonData: any;
 } = toRefs(props);
 const emit = defineEmits(["getThumbnail", "getPageNum", "mountPdf", "stopDrawing"]); // 传递缩略图数据
 const pageRefs = ref<any>(null); // 父级dom
@@ -109,7 +115,7 @@ const initFunc = async () => {
         startLine,
         drawLine,
         stopDrwa,
-        addText
+        jsonData.value
     );
     useMountObserve(
         pageRefs.value,
@@ -124,6 +130,8 @@ const initFunc = async () => {
         pagesCount: pagesCount.value,
         scale: scale.value,
     });
+
+    // console.log(jsonData, "jsonData");
 };
 
 const setPage = (currenPage: number) => {
