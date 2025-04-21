@@ -1,7 +1,7 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 13:52:46
- * @LastEditTime: 2025-04-21 09:17:45
+ * @LastEditTime: 2025-04-21 10:02:16
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\index.vue
 -->
 <template>
@@ -155,6 +155,9 @@ const optionPreviewFunc = (type: string) => {
 };
 const selectOptionFunc = (event: optionTs) => {
     optionObj.value = event;
+    if (event.type === "text") {
+        pdfDom.value.addText();
+    }
 };
 const saveFunc = async ({ type }: { type: string }) => {
     if (type === "save") {

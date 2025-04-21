@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-15 15:21:02
+ * @LastEditTime: 2025-04-21 11:31:52
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
 export const useLine = (drawConfig: any) => {
@@ -12,7 +12,8 @@ export const useLine = (drawConfig: any) => {
     let longPressTimer: number | null = null; // 判读是否长按
     let fabricCanvas: any
     let downPoint: any
-    const startLine = async (event: { page: string, canvas: any }, e: any) => {
+    const startLine = async (event: { canvas: any }, e: any) => {
+        console.log(event,)
         if (!e || !event.canvas) return
         fabricCanvas = event.canvas
         const pointer = event.canvas.getPointer(e.e);
@@ -27,11 +28,6 @@ export const useLine = (drawConfig: any) => {
                 selectable: true
             });
             event.canvas.add(currentObjet);
-        } else if (drawConfig.value.type === "text") {
-            longPressTimer = setTimeout(() => {
-                addText(event, e);
-            }, 1000);
-            return
         } else if (drawConfig.value.type === "round") {
             isDraw = true
             downPoint = { x: pointer.x, y: pointer.y };
@@ -63,7 +59,7 @@ export const useLine = (drawConfig: any) => {
 
         }
     }
-    const drawLine = (event: { page: string, canvas: any }, e: any) => {
+    const drawLine = (event: { canvas: any }, e: any) => {
         longPressTimer && clearTimeout(longPressTimer);
         if (!e || !isDraw) return
         const pointer = event.canvas.getPointer(e.e);
@@ -90,25 +86,33 @@ export const useLine = (drawConfig: any) => {
 
         }
     }
-    const stopDrwa = (event: { page: string, canvas: any }, e: any) => {
+    const stopDrwa = (event: { canvas: any }, e: any) => {
         isDraw = false
         longPressTimer && clearTimeout(longPressTimer);
         currentObjet = null
         // event.canvas.discardActiveObject();
         // event.canvas.renderAll();
     }
-    const addText = (event: { page: string, canvas: any }, e: any) => {
+    const addText = (canvas: any) => {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // 计算窗口中间点的坐标
+        const middleX = width / 2;
+        const middleY = height / 2;
         const currentIText = new fabric.IText("双击输入文本", {
-            left: e.pointer.x,
-            top: e.pointer.y,
+            left: middleX,
+            top: middleY,
             fontSize: drawConfig.value.fontSize,
             fill: drawConfig.value.fontColor,
             editable: true,
             lockScalingFlip: true, // 不能通过缩放为负值来翻转对象
             lockUniScaling: true // 对象非均匀缩放被锁定
         });
-        event.canvas.add(currentIText)
-        event.canvas.requestRenderAll();
+        canvas.add(currentIText)
+        canvas.requestRenderAll();
+    }
+    const wheel = (event: { canvas: any }, e: any) => {
     }
     const handleKeyDown = (e: { key: string }) => {
         if (e.key === 'Delete') {
@@ -126,16 +130,11 @@ export const useLine = (drawConfig: any) => {
     onUnmounted(() => {
         window.removeEventListener('keydown', handleKeyDown);
     });
-    const getPageLine = (page: string | number) => {
-    }
-    const getPageCurrenLine = (page: string | number, key: string | number) => {
-    }
     return {
         startLine,
         drawLine,
         stopDrwa,
-        getPageLine,
-        getPageCurrenLine,
-        addText
+        addText,
+        wheel
     }
 } 

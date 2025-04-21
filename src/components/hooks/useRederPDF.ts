@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-21 09:23:17
+ * @LastEditTime: 2025-04-21 11:55:00
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -41,6 +41,56 @@ export const useRederPdf = () => {
         const blob = new Blob([pdfBytes], { type: "application/pdf" });
         pdfUrl.value = URL.createObjectURL(blob);
     }
+    const initfabricCanvasFunc = (viewportWidth: number, viewportHeight: number, startLine: Function,
+        drawLine: Function,
+        stopDrwa: Function,
+        wheel: Function,
+        jsonData: any) => {
+        const fabricCanvas = new fabric.Canvas(`annotation-canvas`, {
+            width: viewportWidth,
+            height: viewportHeight * pagesCount.value,
+            isDrawingMode: false,
+        })
+        fabricCanvas.selectionColor = 'transparent'
+        fabricCanvas.selectionBorderColor = 'transparent'
+        // // fabricCanvas.skipTargetFind = true // 禁止选中
+        fabricCanvas.on('mouse:down', startLine.bind(fabricCanvas, {
+            canvas: fabricCanvas,
+        })) // 鼠标在画布上按下
+        fabricCanvas.on('mouse:move', drawLine.bind(fabricCanvas, {
+            canvas: fabricCanvas,
+        })) // 鼠标在画布上移动
+        fabricCanvas.on('mouse:up', stopDrwa.bind(fabricCanvas, {
+            canvas: fabricCanvas,
+        })) // 鼠标在画布上移动
+        fabricCanvas.on('mouse:wheel', wheel.bind(fabricCanvas, {
+            canvas: fabricCanvas,
+        })) // 鼠标在画布上移动
+        const viewport = {
+            left: fabricCanvas.viewportTransform[4],
+            top: fabricCanvas.viewportTransform[5],
+            width: fabricCanvas.width / fabricCanvas.viewportTransform[0],
+            height: fabricCanvas.height / fabricCanvas.viewportTransform[3]
+        };
+
+        fabricCanvas.forEachObject((object: any) => {
+            const objectBounds = object.getBoundingRect();
+            const isInViewport = (
+                objectBounds.left < viewport.left + viewport.width &&
+                objectBounds.left + objectBounds.width > viewport.left &&
+                objectBounds.top < viewport.top + viewport.height &&
+                objectBounds.top + objectBounds.height > viewport.top
+            );
+            object.visible = isInViewport;
+        });
+        fabricCanvas.renderAll();
+        // fabricCanvasObj.value[`annotation-canvas`] = fabricCanvas
+        // const dataObj = jsonData[`annotation-canvas`]
+        // dataObj && fabricCanvas.loadFromJSON(dataObj, () => {
+        //     // 加载完成后渲染画布
+        //     fabricCanvas.renderAll();
+        // });
+    }
     /**
      * @description: 渲染pdf与pdf-lib
      * @param {number} scale // 放大倍数
@@ -55,6 +105,7 @@ export const useRederPdf = () => {
         startLine: Function,
         drawLine: Function,
         stopDrwa: Function,
+        wheel: Function,
         jsonData: any
     ) => {
         if (!pdfUrl.value) return;
@@ -63,6 +114,7 @@ export const useRederPdf = () => {
         const thumbnailArr: string[] = []; // 缩略图
         const thumbnailInfoArr: { imgUrl: string; pageIndex: number }[] = [];
         pagesCount.value = pdf.numPages;
+        let isReder = true;
         for (let i = 1; i <= pagesCount.value; i++) {
             const page = await pdf.getPage(i);
             const viewport = page.getViewport({ scale }); // 设置合适的缩放比例
@@ -71,33 +123,12 @@ export const useRederPdf = () => {
             const context = canvas.getContext("2d");
             canvas.height = viewport.height;
             canvas.width = viewport.width;
-            const fabricCanvas = new fabric.Canvas(`annotation-canvas_${i - 1}`, {
-                width: viewport.width,
-                height: viewport.height,
-                isDrawingMode: false,
-                // backgroundColor: 'transparent' 
-            })
-            fabricCanvas.selectionColor = 'transparent'
-            fabricCanvas.selectionBorderColor = 'transparent'
-            // fabricCanvas.skipTargetFind = true // 禁止选中
-            fabricCanvas.on('mouse:down', startLine.bind(fabricCanvas, {
-                page: i - 1,
-                canvas: fabricCanvas,
-            })) // 鼠标在画布上按下
-            fabricCanvas.on('mouse:move', drawLine.bind(fabricCanvas, {
-                page: i - 1,
-                canvas: fabricCanvas,
-            })) // 鼠标在画布上移动
-            fabricCanvas.on('mouse:up', stopDrwa.bind(fabricCanvas, {
-                page: i - 1,
-                canvas: fabricCanvas,
-            })) // 鼠标在画布上移动
-            fabricCanvasObj.value[`annotation-canvas_${i - 1}`] = fabricCanvas
-            const dataObj = jsonData[`annotation-canvas_${i - 1}`]
-            dataObj && fabricCanvas.loadFromJSON(dataObj, () => {
-                // 加载完成后渲染画布
-                fabricCanvas.renderAll();
-            });
+            isReder && initfabricCanvasFunc(viewport.width, viewport.height, startLine,
+                drawLine,
+                stopDrwa,
+                wheel,
+                jsonData)
+            isReder = false
             const wrapper = canvas.parentElement;
             wrapper.style.width = `${viewport.width}px`;
             wrapper.style.height = `${viewport.height}px`;
@@ -115,6 +146,7 @@ export const useRederPdf = () => {
                 });
             }
         }
+
         if (istThumbnail) {
             thumbnailObj.value = {
                 thumbnail: thumbnailArr,
