@@ -1,7 +1,7 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 13:52:46
- * @LastEditTime: 2025-04-22 15:35:37
+ * @LastEditTime: 2025-04-22 17:09:27
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\index.vue
 -->
 <template>
@@ -14,6 +14,7 @@
             @optionPreviewFunc="optionPreviewFunc"
             @selectOptionFunc="selectOptionFunc"
             @saveFunc="saveFunc"
+            @revokeFunc="revokeFunc"
         />
         <div class="home-main-box">
             <div
@@ -69,8 +70,11 @@ const pdfDom = ref<any>(null);
 const previewDom = ref<any>(null);
 const isReviewPdf = ref<boolean>(true);
 const examplePdf = ref<string>("file/vuejs.pdf");
+
 const storeAnnotationsJson = ref<any>(
-    JSON.parse(localStorage.getItem("storeAnnotations") || "")
+    localStorage.getItem("storeAnnotations")
+        ? JSON.parse(localStorage.getItem("storeAnnotations") || "")
+        : ""
 );
 type optionTs = {
     type?: string;
@@ -180,6 +184,13 @@ const saveFunc = async ({ type }: { type: string }) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    }
+};
+const revokeFunc = ({ type }: { type: string }) => {
+    if (type === "revoke") {
+        pdfDom.value.undo();
+    } else {
+        pdfDom.value.redo();
     }
 };
 </script>

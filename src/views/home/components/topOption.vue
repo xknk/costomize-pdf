@@ -114,7 +114,7 @@
             </div>
         </div>
         <!-- <div class="one-option-box">
-            <div v-for="item in revokeOptions" :key="item.icon">
+            <div v-for="item in revokeOptions" :key="item.icon" @click="revokeFunc(item)">
                 <i :class="`iconfont ${item.icon}`"></i>
             </div>
         </div> -->
@@ -157,6 +157,7 @@ const emits = defineEmits([
     "optionPreviewFunc",
     "selectOptionFunc",
     "saveFunc",
+    "revokeFunc",
 ]);
 const props = defineProps({
     currenPage: {
@@ -230,6 +231,9 @@ const imgSuccessFunc: UploadProps["onChange"] = (uploadFile, UploadFiles) => {
         type: "image",
         imgUrl: imgUrl.value,
     });
+};
+const revokeFunc = ({ type }: { type: string }) => {
+    emits("revokeFunc", { type });
 };
 const imgbeforeUploadFunc: UploadProps["beforeUpload"] = (rawFile) => {
     if (rawFile.type !== "image/jpeg" && rawFile.type !== "image/png") {

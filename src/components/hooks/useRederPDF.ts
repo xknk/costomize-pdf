@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-22 15:05:35
+ * @LastEditTime: 2025-04-22 17:06:41
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -28,7 +28,7 @@ export const useRederPdf = () => {
     const pdfUrl = ref<string>("")
     const pagesCount = ref<number>(0)
     const thumbnailObj = ref<TsThumbnail | null>(null)
-    let fabricCanvasObj:any = ({})
+    let fabricCanvasObj: any = ({})
     /**
      * @description: 获取pdfUrl
      * @param {string} url
@@ -55,6 +55,7 @@ export const useRederPdf = () => {
         startLine: Function,
         drawLine: Function,
         stopDrwa: Function,
+        saveState: Function,
         jsonData: any
     ) => {
         if (!pdfUrl.value) return;
@@ -92,8 +93,22 @@ export const useRederPdf = () => {
                 page: i - 1,
                 canvas: fabricCanvas,
             })) // 鼠标在画布上移动
+            fabricCanvas.on('object:added', saveState.bind(fabricCanvas, {
+                page: i - 1,
+                canvas: fabricCanvas,
+            })) // 添加元素
+            fabricCanvas.on('object:removed', saveState.bind(fabricCanvas, {
+                page: i - 1,
+                canvas: fabricCanvas,
+            })) // 删除元素
+            fabricCanvas.on('object:modified', saveState.bind(fabricCanvas, {
+                page: i - 1,
+                canvas: fabricCanvas,
+            })) // 更新元素
+
             fabricCanvasObj[`annotation-canvas_${i - 1}`] = fabricCanvas
             const dataObj = jsonData[`annotation-canvas_${i - 1}`]
+            console.log(dataObj, 'dataObj')
             dataObj && fabricCanvas.loadFromJSON(dataObj, () => {
                 // 加载完成后渲染画布
                 fabricCanvas.renderAll();

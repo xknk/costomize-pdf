@@ -37,6 +37,7 @@ import { useRederPdf } from "./hooks/useRederPDF";
 import { useMountObserve } from "./hooks/useMountObserve";
 import { useLine } from "./hooks/useLine";
 import { useSave } from "./hooks/useSave";
+import { useStack } from "./hooks/useStack";
 import { debounce } from "@/utils";
 
 const props = defineProps({
@@ -99,6 +100,7 @@ const {
     fabricCanvasObj,
 }: any = useRederPdf();
 const { startLine, drawLine, stopDrwa, addText, addImage } = useLine(drawConfig);
+const { saveState, undo, redo } = useStack();
 const { save, down } = useSave();
 const getCanvasFunc = (event: string | number) => {
     currenPage.value = event;
@@ -117,6 +119,7 @@ const initFunc = async () => {
         startLine,
         drawLine,
         stopDrwa,
+        saveState,
         jsonData.value
     );
     useMountObserve(
@@ -174,6 +177,8 @@ defineExpose({
     getDownUrl: getDownUrl,
     addText: addTextFunc,
     addImage: addImageFunc,
+    undo: undo,
+    redo: redo,
 });
 </script>
 <style scoped>
