@@ -1,7 +1,7 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 13:52:46
- * @LastEditTime: 2025-04-21 09:17:45
+ * @LastEditTime: 2025-04-22 10:27:13
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\index.vue
 -->
 <template>
@@ -74,17 +74,17 @@ const storeAnnotationsJson = ref<any>(
 );
 type optionTs = {
     type: string;
-    fontConfigObj: {
-        fontSize: number;
-        fontColor: string;
-    };
+    fontSize: number;
+    fontColor: string;
+    lineColor: string;
+    lineWidth: number;
 };
 const optionObj = ref<optionTs>({
     type: "",
-    fontConfigObj: {
-        fontSize: 0,
-        fontColor: "",
-    },
+    fontSize: 14,
+    fontColor: "#000000",
+    lineColor: "red",
+    lineWidth: 1,
 });
 const getThumbnailFunc = ({
     thumbnail,
@@ -155,6 +155,9 @@ const optionPreviewFunc = (type: string) => {
 };
 const selectOptionFunc = (event: optionTs) => {
     optionObj.value = event;
+    if (event.type === "text") {
+        pdfDom.value.addText();
+    }
 };
 const saveFunc = async ({ type }: { type: string }) => {
     if (type === "save") {
@@ -163,17 +166,18 @@ const saveFunc = async ({ type }: { type: string }) => {
         for (let key in jsonObj) {
             newJsonObj[key] = jsonObj[key];
         }
+        console.log(newJsonObj, "newJsonObj");
         localStorage.setItem("storeAnnotations", JSON.stringify(newJsonObj));
     } else {
         const downUrl = await pdfDom.value.getDownUrl(type);
-        console.log(downUrl, "downUrl");
-        // const link = document.createElement('a');
-        // link.href = url;
-        // link.download = `annotated-pdf.pdf`;
-        // // 触发下载
-        // document.body.appendChild(link);
-        // link.click();
-        // document.body.removeChild(link);
+        // console.log(downUrl, "downUrl");
+        const link = document.createElement("a");
+        link.href = downUrl;
+        link.download = `annotated-pdf.pdf`;
+        // 触发下载
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 };
 </script>

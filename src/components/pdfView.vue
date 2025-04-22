@@ -89,6 +89,7 @@ const {
 const emit = defineEmits(["getThumbnail", "getPageNum", "mountPdf", "stopDrawing"]); // 传递缩略图数据
 const pageRefs = ref<any>(null); // 父级dom
 const canvasRefs = ref<any>([]); // pdf渲染Canvas
+const currenPage = ref<number | string>(0); // 当前页码
 const {
     getPdfUrlFunc,
     rederPdfFunc,
@@ -100,6 +101,7 @@ const {
 const { startLine, drawLine, stopDrwa, addText } = useLine(drawConfig);
 const { save, down } = useSave();
 const getCanvasFunc = (event: string | number) => {
+    currenPage.value = event;
     emit("getPageNum", event);
 };
 /**
@@ -146,6 +148,13 @@ const getDownUrl = async () => {
     const newUrl = await down(url.value, fabricCanvasObj.value);
     return newUrl;
 };
+const addTextFunc = () => {
+    addText({
+        page: currenPage.value,
+        canvas: fabricCanvasObj.value[`annotation-canvas_${+currenPage.value - 1}`],
+        canvasRefs: canvasRefs.value[`canvas${+currenPage.value - 1}`],
+    });
+};
 onMounted(() => {
     initFunc();
 });
@@ -153,6 +162,7 @@ defineExpose({
     setPage: debounce(setPage, 500),
     getJson: getJson,
     getDownUrl: getDownUrl,
+    addText: addTextFunc,
 });
 </script>
 <style scoped>

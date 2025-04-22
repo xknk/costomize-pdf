@@ -171,7 +171,7 @@ const fontConfigObj = ref<{
     lineWidth: number;
     lineColor: string;
 }>({
-    fontSize: 12,
+    fontSize: 14,
     fontColor: "#000000",
     lineWidth: 1,
     lineColor: "red",
