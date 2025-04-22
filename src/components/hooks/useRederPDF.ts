@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-21 09:23:17
+ * @LastEditTime: 2025-04-22 15:05:35
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -28,7 +28,7 @@ export const useRederPdf = () => {
     const pdfUrl = ref<string>("")
     const pagesCount = ref<number>(0)
     const thumbnailObj = ref<TsThumbnail | null>(null)
-    let fabricCanvasObj = ref<{ [id: string]: any }>({})
+    let fabricCanvasObj:any = ({})
     /**
      * @description: 获取pdfUrl
      * @param {string} url
@@ -92,7 +92,7 @@ export const useRederPdf = () => {
                 page: i - 1,
                 canvas: fabricCanvas,
             })) // 鼠标在画布上移动
-            fabricCanvasObj.value[`annotation-canvas_${i - 1}`] = fabricCanvas
+            fabricCanvasObj[`annotation-canvas_${i - 1}`] = fabricCanvas
             const dataObj = jsonData[`annotation-canvas_${i - 1}`]
             dataObj && fabricCanvas.loadFromJSON(dataObj, () => {
                 // 加载完成后渲染画布

@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-22 10:33:38
+ * @LastEditTime: 2025-04-22 15:08:42
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
 export const useLine = (drawConfig: any) => {
@@ -94,6 +94,7 @@ export const useLine = (drawConfig: any) => {
     }
     const addText = (event: { page: string | number, canvas: any, canvasRefs: any }) => {
         if (!event || !event.canvas || !event.canvasRefs) return
+        fabricCanvas = event.canvas
         const rect = event.canvasRefs.getBoundingClientRect()
         const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
         const isTopVisible = rect.top >= 0 && rect.top <= viewportHeight;
@@ -118,7 +119,7 @@ export const useLine = (drawConfig: any) => {
             lockUniScaling: true // 对象非均匀缩放被锁定
         });
         event.canvas.add(currentIText)
-        event.canvas.renderAll();
+        event.canvas.requestRenderAll();
     }
     const handleKeyDown = (e: { key: string }) => {
         if (e.key === 'Delete') {

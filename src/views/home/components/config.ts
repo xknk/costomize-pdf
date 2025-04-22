@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-09 16:41:37
- * @LastEditTime: 2025-04-15 15:53:10
+ * @LastEditTime: 2025-04-22 14:20:58
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\components\config.ts
  */
 export const lineOptions = [
@@ -65,7 +65,7 @@ export const iconOptions = [
     { icon: 'icon-yuanxingweixuanzhong', class: 'tree-icon-box', type: 'round' },
     { icon: 'icon-juxing', class: 'one-icon-box', type: 'rect', },
     // { icon: 'icon-relieve-full', class: 'tree-icon-box', type: 'peg' },
-    // { icon: 'icon-tupian', class: 'tree-icon-box', type: 'image' },
+    { icon: 'icon-tupian', class: 'tree-icon-box', type: 'image' },
 ]
 
 export const revokeOptions = [

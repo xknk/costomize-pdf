@@ -141,17 +141,17 @@ const setPage = (currenPage: number) => {
 };
 
 const getJson = () => {
-    const jsonObj = save(fabricCanvasObj.value);
+    const jsonObj = save(fabricCanvasObj);
     return jsonObj;
 };
 const getDownUrl = async () => {
-    const newUrl = await down(url.value, fabricCanvasObj.value);
+    const newUrl = await down(url.value, fabricCanvasObj);
     return newUrl;
 };
 const addTextFunc = () => {
     addText({
         page: currenPage.value,
-        canvas: fabricCanvasObj.value[`annotation-canvas_${+currenPage.value - 1}`],
+        canvas: fabricCanvasObj[`annotation-canvas_${+currenPage.value - 1}`],
         canvasRefs: canvasRefs.value[`canvas${+currenPage.value - 1}`],
     });
 };
