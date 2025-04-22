@@ -98,7 +98,7 @@ const {
     setPageFunc,
     fabricCanvasObj,
 }: any = useRederPdf();
-const { startLine, drawLine, stopDrwa, addText } = useLine(drawConfig);
+const { startLine, drawLine, stopDrwa, addText, addImage } = useLine(drawConfig);
 const { save, down } = useSave();
 const getCanvasFunc = (event: string | number) => {
     currenPage.value = event;
@@ -155,6 +155,16 @@ const addTextFunc = () => {
         canvasRefs: canvasRefs.value[`canvas${+currenPage.value - 1}`],
     });
 };
+const addImageFunc = (imgUrl: string) => {
+    addImage(
+        {
+            page: currenPage.value,
+            canvas: fabricCanvasObj[`annotation-canvas_${+currenPage.value - 1}`],
+            canvasRefs: canvasRefs.value[`canvas${+currenPage.value - 1}`],
+        },
+        imgUrl
+    );
+};
 onMounted(() => {
     initFunc();
 });
@@ -163,6 +173,7 @@ defineExpose({
     getJson: getJson,
     getDownUrl: getDownUrl,
     addText: addTextFunc,
+    addImage: addImageFunc,
 });
 </script>
 <style scoped>

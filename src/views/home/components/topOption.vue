@@ -89,7 +89,23 @@
                 @click="selectOptionFunc(item)"
                 :key="item.type"
             >
+                <el-upload
+                    v-if="item.type === 'image'"
+                    action="#"
+                    :show-file-list="false"
+                    :on-change="imgSuccessFunc"
+                    :before-upload="imgbeforeUploadFunc"
+                    :auto-upload="false"
+                >
+                    <i
+                        class="iconfont"
+                        :class="`${item.icon} ${item.class} ${
+                            selectIcon == item.type ? 'select-icon-box' : ''
+                        }`"
+                    ></i>
+                </el-upload>
                 <i
+                    v-else
                     class="iconfont"
                     :class="`${item.icon} ${item.class} ${
                         selectIcon == item.type ? 'select-icon-box' : ''
@@ -133,6 +149,7 @@ import {
     lineOptions,
 } from "./config";
 import { debounce } from "@/utils";
+import { ElMessage, UploadProps } from "element-plus";
 
 const emits = defineEmits([
     "changeSizeFunc",
@@ -176,7 +193,7 @@ const fontConfigObj = ref<{
     lineWidth: 1,
     lineColor: "red",
 });
-
+const imgUrl = ref<string>("");
 const changeSizeFunc = (e: any) => {
     let value = e;
     if (value) {
@@ -206,6 +223,23 @@ const selectOptionFunc = ({ type }: { icon?: string; type: string }) => {
 };
 const saveFunc = ({ type }: { icon?: string; type: string }) => {
     emits("saveFunc", { type });
+};
+const imgSuccessFunc: UploadProps["onChange"] = (uploadFile, UploadFiles) => {
+    imgUrl.value = URL.createObjectURL(uploadFile.raw!);
+    emits("selectOptionFunc", {
+        type: "image",
+        imgUrl: imgUrl.value,
+    });
+};
+const imgbeforeUploadFunc: UploadProps["beforeUpload"] = (rawFile) => {
+    if (rawFile.type !== "image/jpeg" && rawFile.type !== "image/png") {
+        ElMessage.error("图片只支持png和jpg!");
+        return false;
+    } else if (rawFile.size / 1024 / 1024 > 10) {
+        ElMessage.error("图片不得大于10MB!");
+        return false;
+    }
+    return true;
 };
 </script>
 <style scoped>

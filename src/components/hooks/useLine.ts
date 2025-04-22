@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-22 15:08:42
+ * @LastEditTime: 2025-04-22 15:40:15
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
 export const useLine = (drawConfig: any) => {
@@ -95,7 +95,51 @@ export const useLine = (drawConfig: any) => {
     const addText = (event: { page: string | number, canvas: any, canvasRefs: any }) => {
         if (!event || !event.canvas || !event.canvasRefs) return
         fabricCanvas = event.canvas
-        const rect = event.canvasRefs.getBoundingClientRect()
+        const pointer = getPointer(event.canvasRefs);
+        const currentIText = new fabric.IText("双击输入文本", {
+            left: pointer.x,
+            top: pointer.y,
+            fontSize: drawConfig.value.fontSize,
+            fill: drawConfig.value.fontColor,
+            editable: true,
+            lockScalingFlip: true, // 不能通过缩放为负值来翻转对象
+            lockUniScaling: true // 对象非均匀缩放被锁定
+        });
+        event.canvas.add(currentIText)
+        event.canvas.requestRenderAll();
+    }
+    const addImage = (event: { page: string | number, canvas: any, canvasRefs: any }, imageUrl: string) => {
+        if (!event || !event.canvas || !event.canvasRefs) return
+        fabricCanvas = event.canvas
+        const pointer = getPointer(event.canvasRefs);
+        // 使用 fabric.Image.fromURL 加载图片
+        fabric.Image.fromURL(imageUrl, (img: any) => {
+            // 设置图片的位置
+            img.set({
+                left: pointer.x,
+                top: pointer.y
+            });
+            // 设置图片的缩放比例
+            img.scale(0.5);
+            // 将图片添加到画布
+            event.canvas.add(img);
+            // 渲染画布
+            event.canvas.renderAll();
+        });
+    }
+    const handleKeyDown = (e: { key: string }) => {
+        if (e.key === 'Delete') {
+            const activeObject = fabricCanvas.getActiveObject();
+            // && activeObject.type === 'i-text' || activeObject.type === 'line'
+            if (activeObject) {
+                fabricCanvas.remove(activeObject);
+                fabricCanvas.renderAll();
+            }
+        }
+    };
+
+    const getPointer = (canvasRefs: any) => {
+        const rect = canvasRefs.getBoundingClientRect()
         const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
         const isTopVisible = rect.top >= 0 && rect.top <= viewportHeight;
         let pointer = {
@@ -109,28 +153,8 @@ export const useLine = (drawConfig: any) => {
             pointer.x = 30
             pointer.y = rect.height - 50
         }
-        const currentIText = new fabric.IText("双击输入文本", {
-            left: pointer.x,
-            top: pointer.y,
-            fontSize: drawConfig.value.fontSize,
-            fill: drawConfig.value.fontColor,
-            editable: true,
-            lockScalingFlip: true, // 不能通过缩放为负值来翻转对象
-            lockUniScaling: true // 对象非均匀缩放被锁定
-        });
-        event.canvas.add(currentIText)
-        event.canvas.requestRenderAll();
+        return pointer
     }
-    const handleKeyDown = (e: { key: string }) => {
-        if (e.key === 'Delete') {
-            const activeObject = fabricCanvas.getActiveObject();
-            // && activeObject.type === 'i-text' || activeObject.type === 'line'
-            if (activeObject) {
-                fabricCanvas.remove(activeObject);
-                fabricCanvas.renderAll();
-            }
-        }
-    };
     onMounted(() => {
         window.addEventListener('keydown', handleKeyDown);
     })
@@ -147,6 +171,7 @@ export const useLine = (drawConfig: any) => {
         stopDrwa,
         getPageLine,
         getPageCurrenLine,
-        addText
+        addText,
+        addImage
     }
 } 

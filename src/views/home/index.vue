@@ -1,7 +1,7 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 13:52:46
- * @LastEditTime: 2025-04-22 10:27:13
+ * @LastEditTime: 2025-04-22 15:35:37
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\index.vue
 -->
 <template>
@@ -73,11 +73,12 @@ const storeAnnotationsJson = ref<any>(
     JSON.parse(localStorage.getItem("storeAnnotations") || "")
 );
 type optionTs = {
-    type: string;
-    fontSize: number;
-    fontColor: string;
-    lineColor: string;
-    lineWidth: number;
+    type?: string;
+    fontSize?: number;
+    fontColor?: string;
+    lineColor?: string;
+    lineWidth?: number;
+    imgUrl?: string;
 };
 const optionObj = ref<optionTs>({
     type: "",
@@ -157,6 +158,8 @@ const selectOptionFunc = (event: optionTs) => {
     optionObj.value = event;
     if (event.type === "text") {
         pdfDom.value.addText();
+    } else if (event.type === "image" && event.imgUrl) {
+        pdfDom.value.addImage(event.imgUrl);
     }
 };
 const saveFunc = async ({ type }: { type: string }) => {
@@ -166,7 +169,6 @@ const saveFunc = async ({ type }: { type: string }) => {
         for (let key in jsonObj) {
             newJsonObj[key] = jsonObj[key];
         }
-        console.log(newJsonObj, "newJsonObj");
         localStorage.setItem("storeAnnotations", JSON.stringify(newJsonObj));
     } else {
         const downUrl = await pdfDom.value.getDownUrl(type);
