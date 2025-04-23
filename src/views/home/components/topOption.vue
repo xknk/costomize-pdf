@@ -113,11 +113,11 @@
                 ></i>
             </div>
         </div>
-        <!-- <div class="one-option-box">
+        <div class="one-option-box">
             <div v-for="item in revokeOptions" :key="item.icon" @click="revokeFunc(item)">
                 <i :class="`iconfont ${item.icon}`"></i>
             </div>
-        </div> -->
+        </div>
         <div class="one-option-box">
             <div v-for="item in downOptions" :key="item.icon" @click="saveFunc(item)">
                 <i :class="`iconfont ${item.icon}`"></i>

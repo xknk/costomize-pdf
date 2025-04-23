@@ -11,32 +11,39 @@ export const useStack = () => {
                 state: state,
                 canvas: event.canvas,
                 page: event.page,
+                type: event.type,
             });
             // 清空反撤回栈
             redoStack.length = 0;
         }
-        console.log(undoStack, 'undoStack1')
     }
 
     // 撤回操作
     const undo = () => {
-        if (undoStack.length > 1) {
+        if (undoStack.length > 0) {
             // 取出上一个状态
             isUndo = true; // 设置为撤回状态
             const previousState = undoStack.pop();
-            // 将当前状态保存到反撤回栈
-            redoStack.push(previousState);
-            // 恢复到上上个状态
-            const stateToRestore = undoStack[undoStack.length - 1];
-            if (!storeCanvas) {
-                storeCanvas = previousState.canvas; // 更新存储的画布
-            }
-            // storeCanvas && storeCanvas.clear();
-            stateToRestore.canvas.loadFromJSON(stateToRestore.state, () => {
-                stateToRestore.canvas.renderAll();
+            redoStack.push(previousState); // 保存当前状态到反撤回栈
+            if (previousState.type === 'modify' || previousState.type === 'remove') {
+                const stateToRestore = undoStack[undoStack.length - 1]; // 获取上一个状态
+                stateToRestore.canvas.loadFromJSON(stateToRestore.state, () => {
+                    stateToRestore.canvas.renderAll();
+                    isUndo = false; // 设置为撤回状态
+                });
+                storeCanvas = stateToRestore.canvas; // 更新存储的画布
+            } else if (previousState?.state.objects.length === 1) {
+                // 如果只有一个对象，直接清空画布
+                previousState.canvas.clear();
                 isUndo = false; // 设置为撤回状态
-            });
-            storeCanvas = stateToRestore.canvas; // 更新存储的画布
+            } else {
+                const objects = previousState.state.objects.slice(0, previousState.state.objects.length - 1); // 删除最后一个对象
+                const stateToRestore = previousState
+                previousState && previousState.canvas.loadFromJSON({ ...stateToRestore.state, objects }, () => {
+                    previousState.canvas.renderAll();
+                    isUndo = false; // 设置为撤回状态
+                });
+            }
         }
     }
 
@@ -48,15 +55,10 @@ export const useStack = () => {
             const stateToRestore = redoStack.pop();
             // 保存当前状态到撤回栈
             undoStack.push(stateToRestore);
-            // if (!storeCanvas) {
-            //     storeCanvas = stateToRestore.canvas; // 更新存储的画布
-            // }
-            // storeCanvas && storeCanvas.clear();
             stateToRestore.canvas.loadFromJSON(stateToRestore.state, () => {
                 stateToRestore.canvas.renderAll();
                 isUndo = false; // 设置为撤回状态
             });
-            // storeCanvas = stateToRestore.canvas; // 更新存储的画布
         }
     }
 

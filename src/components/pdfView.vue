@@ -32,6 +32,7 @@ import {
     onMounted,
     onUnmounted,
     watch,
+    nextTick,
 } from "vue";
 import { useRederPdf } from "./hooks/useRederPDF";
 import { useMountObserve } from "./hooks/useMountObserve";
@@ -99,8 +100,11 @@ const {
     setPageFunc,
     fabricCanvasObj,
 }: any = useRederPdf();
-const { startLine, drawLine, stopDrwa, addText, addImage } = useLine(drawConfig);
 const { saveState, undo, redo } = useStack();
+const { startLine, drawLine, stopDrwa, addText, addImage } = useLine(
+    drawConfig,
+    saveState
+);
 const { save, down } = useSave();
 const getCanvasFunc = (event: string | number) => {
     currenPage.value = event;
@@ -152,10 +156,12 @@ const getDownUrl = async () => {
     return newUrl;
 };
 const addTextFunc = () => {
-    addText({
-        page: currenPage.value,
-        canvas: fabricCanvasObj[`annotation-canvas_${+currenPage.value - 1}`],
-        canvasRefs: canvasRefs.value[`canvas${+currenPage.value - 1}`],
+    nextTick(() => {
+        addText({
+            page: currenPage.value,
+            canvas: fabricCanvasObj[`annotation-canvas_${+currenPage.value - 1}`],
+            canvasRefs: canvasRefs.value[`canvas${+currenPage.value - 1}`],
+        });
     });
 };
 const addImageFunc = (imgUrl: string) => {

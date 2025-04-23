@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-22 17:06:41
+ * @LastEditTime: 2025-04-23 14:18:31
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -93,22 +93,18 @@ export const useRederPdf = () => {
                 page: i - 1,
                 canvas: fabricCanvas,
             })) // 鼠标在画布上移动
-            fabricCanvas.on('object:added', saveState.bind(fabricCanvas, {
-                page: i - 1,
-                canvas: fabricCanvas,
-            })) // 添加元素
             fabricCanvas.on('object:removed', saveState.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
+                type: 'remove'
             })) // 删除元素
             fabricCanvas.on('object:modified', saveState.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
+                type: 'modify'
             })) // 更新元素
-
             fabricCanvasObj[`annotation-canvas_${i - 1}`] = fabricCanvas
             const dataObj = jsonData[`annotation-canvas_${i - 1}`]
-            console.log(dataObj, 'dataObj')
             dataObj && fabricCanvas.loadFromJSON(dataObj, () => {
                 // 加载完成后渲染画布
                 fabricCanvas.renderAll();

@@ -3,10 +3,10 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-22 15:40:15
+ * @LastEditTime: 2025-04-23 14:23:06
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
-export const useLine = (drawConfig: any) => {
+export const useLine = (drawConfig: any, saveState: Function) => {
     let isDraw = false // 是否可以开始画线
     let currentObjet: any = null // 临时操作对象
     let longPressTimer: number | null = null; // 判读是否长按
@@ -82,10 +82,13 @@ export const useLine = (drawConfig: any) => {
                 height: Math.abs(height)
             });
             event.canvas.requestRenderAll();
-
         }
+
     }
     const stopDrwa = (event: { page: string, canvas: any }, e: any) => {
+        if (isDraw) {
+            saveState({...event, type: 'add'})
+        }
         isDraw = false
         longPressTimer && clearTimeout(longPressTimer);
         currentObjet = null
@@ -107,6 +110,7 @@ export const useLine = (drawConfig: any) => {
         });
         event.canvas.add(currentIText)
         event.canvas.requestRenderAll();
+        saveState({...event, type: 'add'})
     }
     const addImage = (event: { page: string | number, canvas: any, canvasRefs: any }, imageUrl: string) => {
         if (!event || !event.canvas || !event.canvasRefs) return
@@ -125,6 +129,7 @@ export const useLine = (drawConfig: any) => {
             event.canvas.add(img);
             // 渲染画布
             event.canvas.renderAll();
+            saveState({...event, type: 'add'})
         });
     }
     const handleKeyDown = (e: { key: string }) => {
