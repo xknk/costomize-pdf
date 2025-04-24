@@ -299,9 +299,15 @@ const imgbeforeUploadFunc: UploadProps["beforeUpload"] = (rawFile) => {
     font-size: 1.2rem;
     color: #666;
 }
+.four-icon-box {
+    font-size: 1.2rem;
+    color: #666;
+    margin-left: 1rem;
+}
 .one-icon-box:hover,
 .two-icon-box:hover,
-.tree-icon-box:hover {
+.tree-icon-box:hover,
+.four-icon-box:hover {
     color: #000;
     cursor: pointer;
 }

@@ -1,7 +1,7 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 13:52:46
- * @LastEditTime: 2025-04-22 17:09:27
+ * @LastEditTime: 2025-04-24 11:15:32
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\index.vue
 -->
 <template>
@@ -34,12 +34,17 @@
                     @getThumbnail="getThumbnailFunc"
                     @getPageNum="getPageNumFunc"
                     @mountPdf="initPdfFunc"
+                    @getQueueStack="getQueueStackFunc"
                     :drawConfig="optionObj"
                     :url="examplePdf"
                     :jsonData="storeAnnotationsJson"
                 />
             </div>
-            <OptionHostory />
+            <optionHistory
+                :queueStackArr="queueStackArr"
+                @selectAnnotationsFunc="selectAnnotationsFunc"
+                @delectAnnotationsFunc="delectAnnotationsFunc"
+            />
         </div>
     </div>
 </template>
@@ -61,7 +66,7 @@ import {
 } from "vue";
 import TopOption from "./components/topOption.vue";
 import PreviewPdf from "./components/previewPdf.vue";
-import OptionHostory from "./components/optionHostory.vue";
+import optionHistory from "./components/optionHistory.vue";
 import PdfView from "@/components/pdfView.vue";
 const thumbnailArr = ref<string[]>([]);
 const currenPage = ref<string | number>(1); // 获取得当前页码
@@ -70,7 +75,7 @@ const pdfDom = ref<any>(null);
 const previewDom = ref<any>(null);
 const isReviewPdf = ref<boolean>(true);
 const examplePdf = ref<string>("file/vuejs.pdf");
-
+const queueStackArr = ref<any>([]);
 const storeAnnotationsJson = ref<any>(
     localStorage.getItem("storeAnnotations")
         ? JSON.parse(localStorage.getItem("storeAnnotations") || "")
@@ -189,9 +194,24 @@ const saveFunc = async ({ type }: { type: string }) => {
 const revokeFunc = ({ type }: { type: string }) => {
     if (type === "revoke") {
         pdfDom.value.undo();
-    } else {
+    } else if (type === "reverse_revoke") {
         pdfDom.value.redo();
+    } else if (type === "clear") {
+        pdfDom.value.clearActiveObjectAll();
     }
+};
+
+const getQueueStackFunc = (event: any) => {
+    queueStackArr.value = event;
+};
+
+const selectAnnotationsFunc = ({ id, pageNum }: { id: string; pageNum: string }) => {
+    pdfDom.value.setPage(pageNum);
+    pdfDom.value.setActiveObject(id, pageNum);
+};
+
+const delectAnnotationsFunc = ({ id, pageNum }: { id: string; pageNum: string }) => {
+    pdfDom.value.removeActiveObject(id, pageNum);
 };
 </script>
 <style scoped>

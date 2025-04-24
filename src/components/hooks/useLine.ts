@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-23 14:23:06
+ * @LastEditTime: 2025-04-24 11:21:34
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
 export const useLine = (drawConfig: any, saveState: Function) => {
@@ -24,7 +24,8 @@ export const useLine = (drawConfig: any, saveState: Function) => {
             currentObjet = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y], {
                 stroke: drawConfig.value.lineColor,
                 strokeWidth: drawConfig.value.lineWidth,
-                selectable: true
+                selectable: true,
+                id: `line_${new Date().getTime()}`,
             });
             event.canvas.add(currentObjet);
         } else if (drawConfig.value.type === "round") {
@@ -37,7 +38,8 @@ export const useLine = (drawConfig: any, saveState: Function) => {
                 fill: 'transparent',
                 stroke: drawConfig.value.lineColor,
                 strokeWidth: drawConfig.value.lineWidth,
-                selectable: true
+                selectable: true,
+                id: `circle_${new Date().getTime()}`,
             });
             event.canvas.add(currentObjet);
 
@@ -52,7 +54,8 @@ export const useLine = (drawConfig: any, saveState: Function) => {
                 fill: 'transparent',
                 stroke: drawConfig.value.lineColor,
                 strokeWidth: drawConfig.value.lineWidth,
-                selectable: true
+                selectable: true,
+                id: `rect_${new Date().getTime()}`,
             });
             event.canvas.add(currentObjet);
 
@@ -87,7 +90,7 @@ export const useLine = (drawConfig: any, saveState: Function) => {
     }
     const stopDrwa = (event: { page: string, canvas: any }, e: any) => {
         if (isDraw) {
-            saveState({...event, type: 'add'})
+            saveState({ ...event, type: 'add' })
         }
         isDraw = false
         longPressTimer && clearTimeout(longPressTimer);
@@ -106,11 +109,12 @@ export const useLine = (drawConfig: any, saveState: Function) => {
             fill: drawConfig.value.fontColor,
             editable: true,
             lockScalingFlip: true, // 不能通过缩放为负值来翻转对象
-            lockUniScaling: true // 对象非均匀缩放被锁定
+            lockUniScaling: true, // 对象非均匀缩放被锁定
+            id: `text_${new Date().getTime()}`,
         });
         event.canvas.add(currentIText)
         event.canvas.requestRenderAll();
-        saveState({...event, type: 'add'})
+        saveState({ ...event, type: 'add' })
     }
     const addImage = (event: { page: string | number, canvas: any, canvasRefs: any }, imageUrl: string) => {
         if (!event || !event.canvas || !event.canvasRefs) return
@@ -121,7 +125,8 @@ export const useLine = (drawConfig: any, saveState: Function) => {
             // 设置图片的位置
             img.set({
                 left: pointer.x,
-                top: pointer.y
+                top: pointer.y,
+                id: `image_${new Date().getTime()}`,
             });
             // 设置图片的缩放比例
             img.scale(0.5);
@@ -129,7 +134,7 @@ export const useLine = (drawConfig: any, saveState: Function) => {
             event.canvas.add(img);
             // 渲染画布
             event.canvas.renderAll();
-            saveState({...event, type: 'add'})
+            saveState({ ...event, type: 'add' })
         });
     }
     const handleKeyDown = (e: { key: string }) => {
@@ -160,6 +165,27 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         }
         return pointer
     }
+
+    const setActiveObject = (canvas: any, targetId: string, type = "setActive") => {
+        const objects = canvas.getObjects();
+        for (let i = 0; i < objects.length; i++) {
+            const object = objects[i];
+            if (object.id === targetId) {
+                // 将具有指定 ID 的元素设置为活动对象
+                type === "setActive" ? canvas.setActiveObject(object) : canvas.remove(object);
+                // 重新渲染画布
+                canvas.renderAll();
+                break;
+            }
+        }
+    }
+    const clearActiveObjectAll = (canvasObj: any) => {
+        for (let key in canvasObj) {
+            canvasObj[key].clear()
+            canvasObj[key].renderAll();
+        }
+    }
+
     onMounted(() => {
         window.addEventListener('keydown', handleKeyDown);
     })
@@ -177,6 +203,8 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         getPageLine,
         getPageCurrenLine,
         addText,
-        addImage
+        addImage,
+        setActiveObject,
+        clearActiveObjectAll
     }
 } 

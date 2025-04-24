@@ -88,7 +88,13 @@ const {
     };
     jsonData: any;
 } = toRefs(props);
-const emit = defineEmits(["getThumbnail", "getPageNum", "mountPdf", "stopDrawing"]); // 传递缩略图数据
+const emit = defineEmits([
+    "getThumbnail",
+    "getPageNum",
+    "mountPdf",
+    "stopDrawing",
+    "getQueueStack",
+]); // 传递缩略图数据
 const pageRefs = ref<any>(null); // 父级dom
 const canvasRefs = ref<any>([]); // pdf渲染Canvas
 const currenPage = ref<number | string>(0); // 当前页码
@@ -100,11 +106,16 @@ const {
     setPageFunc,
     fabricCanvasObj,
 }: any = useRederPdf();
-const { saveState, undo, redo } = useStack();
-const { startLine, drawLine, stopDrwa, addText, addImage } = useLine(
-    drawConfig,
-    saveState
-);
+const { saveState, undo, redo, queueStack } = useStack();
+const {
+    startLine,
+    drawLine,
+    stopDrwa,
+    addText,
+    addImage,
+    setActiveObject,
+    clearActiveObjectAll,
+} = useLine(drawConfig, saveState);
 const { save, down } = useSave();
 const getCanvasFunc = (event: string | number) => {
     currenPage.value = event;
@@ -139,8 +150,6 @@ const initFunc = async () => {
         pagesCount: pagesCount.value,
         scale: scale.value,
     });
-
-    // console.log(jsonData, "jsonData");
 };
 
 const setPage = (currenPage: number) => {
@@ -158,7 +167,7 @@ const getDownUrl = async () => {
 const addTextFunc = () => {
     nextTick(() => {
         addText({
-            page: currenPage.value,
+            page: +currenPage.value - 1,
             canvas: fabricCanvasObj[`annotation-canvas_${+currenPage.value - 1}`],
             canvasRefs: canvasRefs.value[`canvas${+currenPage.value - 1}`],
         });
@@ -167,13 +176,29 @@ const addTextFunc = () => {
 const addImageFunc = (imgUrl: string) => {
     addImage(
         {
-            page: currenPage.value,
+            page: +currenPage.value - 1,
             canvas: fabricCanvasObj[`annotation-canvas_${+currenPage.value - 1}`],
             canvasRefs: canvasRefs.value[`canvas${+currenPage.value - 1}`],
         },
         imgUrl
     );
 };
+const setActiveObjectFunc = (id: string, page: string) => {
+    setActiveObject(fabricCanvasObj[`annotation-canvas_${+page - 1}`], id);
+};
+const removeActiveObjectFunc = (id: string, page: string) => {
+    setActiveObject(fabricCanvasObj[`annotation-canvas_${+page - 1}`], id, "delete");
+};
+watch(
+    () => queueStack.value,
+    (newVal) => {
+        emit("getQueueStack", newVal);
+    },
+    {
+        deep: true,
+        immediate: true,
+    }
+);
 onMounted(() => {
     initFunc();
 });
@@ -185,6 +210,9 @@ defineExpose({
     addImage: addImageFunc,
     undo: undo,
     redo: redo,
+    setActiveObject: setActiveObjectFunc,
+    removeActiveObject: removeActiveObjectFunc,
+    clearActiveObjectAll: clearActiveObjectAll.bind(this, fabricCanvasObj),
 });
 </script>
 <style scoped>

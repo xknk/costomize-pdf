@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-09 16:41:37
- * @LastEditTime: 2025-04-22 16:17:09
+ * @LastEditTime: 2025-04-24 11:13:18
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\components\config.ts
  */
 export const lineOptions = [
@@ -71,6 +71,7 @@ export const iconOptions = [
 export const revokeOptions = [
     { icon: 'icon-chehui two-icon-box', type: 'revoke' },
     { icon: 'icon-fanchehui tree-icon-box', type: 'reverse_revoke' },
+    { icon: 'icon-15qingkong-1 four-icon-box', type: 'clear' },
 ]
 
 export const downOptions = [

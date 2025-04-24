@@ -1,6 +1,9 @@
+import { ref, toRefs } from "vue";
+
 export const useStack = () => {
     const undoStack: any = [];
     const redoStack: any = [];
+    const queueStack = ref<any>(new Map()); // 存储当前操作的画布
     let isUndo = false; // 是否撤回
     let storeCanvas: any = null; // 存储上一个画布
     // 记录当前状态
@@ -15,6 +18,7 @@ export const useStack = () => {
             });
             // 清空反撤回栈
             redoStack.length = 0;
+            storeQueue(event.page, event.canvas); // 存储当前操作的画布
         }
     }
 
@@ -31,10 +35,12 @@ export const useStack = () => {
                     stateToRestore.canvas.renderAll();
                     isUndo = false; // 设置为撤回状态
                 });
+                storeQueue(previousState.page, previousState.canvas); // 存储当前操作的画布
                 storeCanvas = stateToRestore.canvas; // 更新存储的画布
             } else if (previousState?.state.objects.length === 1) {
                 // 如果只有一个对象，直接清空画布
                 previousState.canvas.clear();
+                storeQueue(previousState.page, previousState.canvas); // 存储当前操作的画布
                 isUndo = false; // 设置为撤回状态
             } else {
                 const objects = previousState.state.objects.slice(0, previousState.state.objects.length - 1); // 删除最后一个对象
@@ -43,7 +49,9 @@ export const useStack = () => {
                     previousState.canvas.renderAll();
                     isUndo = false; // 设置为撤回状态
                 });
+                storeQueue(previousState.page, previousState.canvas); // 存储当前操作的画布
             }
+
         }
     }
 
@@ -59,12 +67,21 @@ export const useStack = () => {
                 stateToRestore.canvas.renderAll();
                 isUndo = false; // 设置为撤回状态
             });
+            storeQueue(stateToRestore.page, stateToRestore.canvas); // 存储当前操作的画布
         }
     }
-
+    const storeQueue = (page: number, canvas: any) => {
+        const dataArr = canvas.getObjects()
+        if (dataArr.length > 0) {
+            queueStack.value.set(page + 1, canvas.getObjects()); // 存储当前操作的画布
+        } else {
+            queueStack.value.delete(page + 1); // 删除当前操作的画布
+        }
+    }
     return {
         saveState,
         undo,
         redo,
+        queueStack: queueStack,
     }
 }  
