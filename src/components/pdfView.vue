@@ -115,6 +115,7 @@ const {
     addImage,
     setActiveObject,
     clearActiveObjectAll,
+    scaleCanvas,
 } = useLine(drawConfig, saveState);
 const { save, down } = useSave();
 const getCanvasFunc = (event: string | number) => {
@@ -134,6 +135,7 @@ const initFunc = async () => {
         startLine,
         drawLine,
         stopDrwa,
+        scaleCanvas,
         saveState,
         jsonData.value
     );

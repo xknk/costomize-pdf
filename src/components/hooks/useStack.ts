@@ -1,3 +1,9 @@
+/*
+ * @Author: Robin LEI
+ * @Date: 2025-04-22 15:58:56
+ * @LastEditTime: 2025-04-25 09:02:28
+ * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useStack.ts
+ */
 import { ref, toRefs } from "vue";
 
 export const useStack = () => {
@@ -5,7 +11,6 @@ export const useStack = () => {
     const redoStack: any = [];
     const queueStack = ref<any>(new Map()); // 存储当前操作的画布
     let isUndo = false; // 是否撤回
-    let storeCanvas: any = null; // 存储上一个画布
     // 记录当前状态
     const saveState = (event: any) => {
         if (!isUndo) {
@@ -36,7 +41,6 @@ export const useStack = () => {
                     isUndo = false; // 设置为撤回状态
                 });
                 storeQueue(previousState.page, previousState.canvas); // 存储当前操作的画布
-                storeCanvas = stateToRestore.canvas; // 更新存储的画布
             } else if (previousState?.state.objects.length === 1) {
                 // 如果只有一个对象，直接清空画布
                 previousState.canvas.clear();

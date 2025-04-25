@@ -3,15 +3,21 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-24 11:21:34
+ * @LastEditTime: 2025-04-25 16:19:15
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
 export const useLine = (drawConfig: any, saveState: Function) => {
     let isDraw = false // 是否可以开始画线
+    let isMoveCanvas = false // 是否可以移动画布
     let currentObjet: any = null // 临时操作对象
     let longPressTimer: number | null = null; // 判读是否长按
     let fabricCanvas: any
     let downPoint: any
+    let lastPosX = 0;
+    let lastPosY = 0;
+    // 初始偏移量
+    let offsetX = 0;
+    let offsetY = 0;
     const startLine = async (event: { page: string, canvas: any }, e: any) => {
         if (!e || !event.canvas) return
         fabricCanvas = event.canvas
@@ -58,12 +64,27 @@ export const useLine = (drawConfig: any, saveState: Function) => {
                 id: `rect_${new Date().getTime()}`,
             });
             event.canvas.add(currentObjet);
-
+        } else if (drawConfig.value.type === "gesture") {
+            const evt = e.e;
+            if (evt.which === 1) {
+                isMoveCanvas = true
+                lastPosX = evt.clientX;
+                lastPosY = evt.clientY;
+            }
         }
     }
-    const drawLine = (event: { page: string, canvas: any }, e: any) => {
+    const drawLine = (event: {
+        page: string, canvas: any, context: any,
+        pdfCanvas: any, offscreenCanvas: any
+    }, e: any) => {
         longPressTimer && clearTimeout(longPressTimer);
-        if (!e || !isDraw) return
+        if (!e || isDraw) {
+            DrwaLine(event, e)
+        } else if (!e || isMoveCanvas) {
+            moveCavnas(event, e)
+        }
+    }
+    const DrwaLine = (event: { page: string, canvas: any }, e: any) => {
         const pointer = event.canvas.getPointer(e.e);
         if (drawConfig.value.type === 'draw') {
             currentObjet.set({ x2: pointer.x, y2: pointer.y });
@@ -86,7 +107,6 @@ export const useLine = (drawConfig: any, saveState: Function) => {
             });
             event.canvas.requestRenderAll();
         }
-
     }
     const stopDrwa = (event: { page: string, canvas: any }, e: any) => {
         if (isDraw) {
@@ -95,12 +115,35 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         isDraw = false
         longPressTimer && clearTimeout(longPressTimer);
         currentObjet = null
+        isMoveCanvas = false
         // event.canvas.discardActiveObject();
         // event.canvas.renderAll();
     }
+    const moveCavnas = (event: {
+        page: string | number, canvas: any, context: any,
+        pdfCanvas: any, offscreenCanvas: any
+    }, e: any) => {
+        const evt = e.e;
+        const deltaX = evt.clientX - lastPosX;
+        const deltaY = evt.clientY - lastPosY;
+        lastPosX = evt.clientX;
+        lastPosY = evt.clientY;
+        let zoom = event.canvas.getZoom();
+        const vpt = event.canvas.viewportTransform;
+        vpt[4] += deltaX;
+        vpt[5] += deltaY;
+        offsetX += deltaX;
+        offsetY += deltaY;
+        // // 清空可见 canvas
+        event.context.clearRect(0, 0, event.pdfCanvas.width, event.pdfCanvas.height);
+        // 应用变换矩阵
+        event.context.setTransform(zoom, 0, 0, zoom, offsetX, offsetY);
+        // 从离屏 canvas 绘制内容到可见 canvas
+        event.context.drawImage(event.offscreenCanvas, 0, 0);
+        event.canvas.renderAll();
+    }
     const addText = (event: { page: string | number, canvas: any, canvasRefs: any }) => {
         if (!event || !event.canvas || !event.canvasRefs) return
-        fabricCanvas = event.canvas
         const pointer = getPointer(event.canvasRefs);
         const currentIText = new fabric.IText("双击输入文本", {
             left: pointer.x,
@@ -186,6 +229,43 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         }
     }
 
+    const scaleCanvas = (event:
+        {
+            page: string | number,
+            canvas: any, pdfCanvas: any,
+            context: any,
+            offscreenCanvas: any
+        }, opt: any) => {
+
+        if (!opt || !event.canvas || !event.pdfCanvas || drawConfig.value.type != 'gesture') return
+        const minZoom = 1;
+        const maxZoom = 5;
+        // // 监听鼠标滚轮事件
+        const delta = opt.e.deltaY;
+        let zoom = event.canvas.getZoom();
+        const oldScale = zoom;
+        zoom *= 0.999 ** delta;
+        zoom = Math.max(minZoom, Math.min(maxZoom, zoom));
+        event.canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+        opt.e.preventDefault();
+        opt.e.stopPropagation();
+        event.canvas.renderAll();
+
+        // 计算鼠标在画布上的位置
+        const rect = event.pdfCanvas.getBoundingClientRect();
+        const mouseX = opt.e.clientX - rect.left;
+        const mouseY = opt.e.clientY - rect.top;
+        const zoomRatio = zoom / oldScale;
+        offsetX = (offsetX - mouseX) * zoomRatio + mouseX;
+        offsetY = (offsetY - mouseY) * zoomRatio + mouseY;
+        // 清空可见 canvas
+        event.context.clearRect(0, 0, event.pdfCanvas.width, event.pdfCanvas.height);
+        // 应用变换矩阵
+        event.context.setTransform(zoom, 0, 0, zoom, offsetX, offsetY);
+        // 从离屏 canvas 绘制内容到可见 canvas
+        event.context.drawImage(event.offscreenCanvas, 0, 0);
+    }
+
     onMounted(() => {
         window.addEventListener('keydown', handleKeyDown);
     })
@@ -205,6 +285,7 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         addText,
         addImage,
         setActiveObject,
-        clearActiveObjectAll
+        clearActiveObjectAll,
+        scaleCanvas
     }
 } 

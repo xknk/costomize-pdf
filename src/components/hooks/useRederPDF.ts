@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-23 14:18:31
+ * @LastEditTime: 2025-04-25 16:40:21
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -55,6 +55,7 @@ export const useRederPdf = () => {
         startLine: Function,
         drawLine: Function,
         stopDrwa: Function,
+        scaleCanvas: Function,
         saveState: Function,
         jsonData: any
     ) => {
@@ -72,6 +73,13 @@ export const useRederPdf = () => {
             const context = canvas.getContext("2d");
             canvas.height = viewport.height;
             canvas.width = viewport.width;
+
+            // 创建离屏 canvas 元素
+            const offscreenCanvas = document.createElement('canvas');
+            const offscreenCtx = offscreenCanvas.getContext('2d');
+            offscreenCanvas.width = viewport.width;
+            offscreenCanvas.height = viewport.height;
+
             const fabricCanvas = new fabric.Canvas(`annotation-canvas_${i - 1}`, {
                 width: viewport.width,
                 height: viewport.height,
@@ -88,11 +96,22 @@ export const useRederPdf = () => {
             fabricCanvas.on('mouse:move', drawLine.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
+                pdfCanvas: canvas,
+                context,
+                offscreenCanvas
             })) // 鼠标在画布上移动
             fabricCanvas.on('mouse:up', stopDrwa.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
             })) // 鼠标在画布上移动
+            fabricCanvas.on('mouse:wheel', scaleCanvas.bind(fabricCanvas, {
+                page: i - 1,
+                canvas: fabricCanvas,
+                pdfCanvas: canvas,
+                context,
+                offscreenCanvas
+            })) // 鼠标滚轮事件
+
             fabricCanvas.on('object:removed', saveState.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
@@ -112,11 +131,14 @@ export const useRederPdf = () => {
             const wrapper = canvas.parentElement;
             wrapper.style.width = `${viewport.width}px`;
             wrapper.style.height = `${viewport.height}px`;
-            const renderContext = {
-                canvasContext: context,
+            const renderContext: any = {
+                canvasContext: offscreenCtx,
                 viewport: viewport,
             };
-            await page.render(renderContext).promise;
+            // await // 渲染页面到离屏 canvas
+            await page.render(renderContext).promise
+            context.drawImage(offscreenCanvas, 0, 0);
+
             if (istThumbnail) {
                 const imageUrl = canvas.toDataURL("image/png");
                 thumbnailArr.push(imageUrl);

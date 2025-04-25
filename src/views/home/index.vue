@@ -169,6 +169,7 @@ const selectOptionFunc = (event: optionTs) => {
         pdfDom.value.addText();
     } else if (event.type === "image" && event.imgUrl) {
         pdfDom.value.addImage(event.imgUrl);
+    } else if (event.type === "reset") {
     }
 };
 const saveFunc = async ({ type }: { type: string }) => {
