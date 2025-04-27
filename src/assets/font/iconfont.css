@@ -1,8 +1,8 @@
 @font-face {
   font-family: "iconfont"; /* Project id 4886498 */
-  src: url('iconfont.woff2?t=1745571132422') format('woff2'),
-       url('iconfont.woff?t=1745571132422') format('woff'),
-       url('iconfont.ttf?t=1745571132422') format('truetype');
+  src: url('iconfont.woff2?t=1745725481916') format('woff2'),
+       url('iconfont.woff?t=1745725481916') format('woff'),
+       url('iconfont.ttf?t=1745725481916') format('truetype');
 }
 
 .iconfont {
@@ -13,8 +13,8 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-fuwei:before {
-  content: "\e620";
+.icon-fuwei1:before {
+  content: "\e603";
 }
 
 .icon-15qingkong-1:before {

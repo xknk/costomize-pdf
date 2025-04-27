@@ -6,11 +6,11 @@
   "description": "",
   "glyphs": [
     {
-      "icon_id": "20599684",
+      "icon_id": "14227366",
       "name": "复位",
-      "font_class": "fuwei",
-      "unicode": "e620",
-      "unicode_decimal": 58912
+      "font_class": "fuwei1",
+      "unicode": "e603",
+      "unicode_decimal": 58883
     },
     {
       "icon_id": "1304965",
