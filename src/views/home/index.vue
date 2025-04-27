@@ -1,7 +1,7 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 13:52:46
- * @LastEditTime: 2025-04-24 11:15:32
+ * @LastEditTime: 2025-04-27 09:37:25
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\index.vue
 -->
 <template>
@@ -170,6 +170,7 @@ const selectOptionFunc = (event: optionTs) => {
     } else if (event.type === "image" && event.imgUrl) {
         pdfDom.value.addImage(event.imgUrl);
     } else if (event.type === "reset") {
+        pdfDom.value.resetActiveObject();
     }
 };
 const saveFunc = async ({ type }: { type: string }) => {

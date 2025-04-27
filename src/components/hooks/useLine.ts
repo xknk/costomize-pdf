@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-25 16:19:15
+ * @LastEditTime: 2025-04-27 09:34:32
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
 export const useLine = (drawConfig: any, saveState: Function) => {
@@ -128,20 +128,35 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         const deltaY = evt.clientY - lastPosY;
         lastPosX = evt.clientX;
         lastPosY = evt.clientY;
-        let zoom = event.canvas.getZoom();
         const vpt = event.canvas.viewportTransform;
         vpt[4] += deltaX;
         vpt[5] += deltaY;
-        offsetX += deltaX;
-        offsetY += deltaY;
-        // // 清空可见 canvas
-        event.context.clearRect(0, 0, event.pdfCanvas.width, event.pdfCanvas.height);
-        // 应用变换矩阵
-        event.context.setTransform(zoom, 0, 0, zoom, offsetX, offsetY);
-        // 从离屏 canvas 绘制内容到可见 canvas
-        event.context.drawImage(event.offscreenCanvas, 0, 0);
-        event.canvas.renderAll();
+        event.canvas.requestRenderAll();
     }
+
+    const scaleCanvas = (event:
+        {
+            page: string | number,
+            canvas: any,
+            offscreenCanvas: any
+        }, opt: any) => {
+
+        if (!opt || !event.canvas || drawConfig.value.type != 'gesture') return
+        const minZoom = 1;
+        const maxZoom = 5;
+        // // 监听鼠标滚轮事件
+        const delta = opt.e.deltaY;
+        let zoom = event.canvas.getZoom();
+        zoom *= 0.999 ** delta;
+        zoom = Math.max(minZoom, Math.min(maxZoom, zoom));
+        event.canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+        opt.e.preventDefault();
+        opt.e.stopPropagation();
+        event.canvas.requestRenderAll();
+    }
+
+
+
     const addText = (event: { page: string | number, canvas: any, canvasRefs: any }) => {
         if (!event || !event.canvas || !event.canvasRefs) return
         const pointer = getPointer(event.canvasRefs);
@@ -176,17 +191,16 @@ export const useLine = (drawConfig: any, saveState: Function) => {
             // 将图片添加到画布
             event.canvas.add(img);
             // 渲染画布
-            event.canvas.renderAll();
+            event.canvas.requestRenderAll();
             saveState({ ...event, type: 'add' })
         });
     }
     const handleKeyDown = (e: { key: string }) => {
         if (e.key === 'Delete') {
             const activeObject = fabricCanvas.getActiveObject();
-            // && activeObject.type === 'i-text' || activeObject.type === 'line'
             if (activeObject) {
                 fabricCanvas.remove(activeObject);
-                fabricCanvas.renderAll();
+                fabricCanvas.requestRenderAll();
             }
         }
     };
@@ -217,54 +231,34 @@ export const useLine = (drawConfig: any, saveState: Function) => {
                 // 将具有指定 ID 的元素设置为活动对象
                 type === "setActive" ? canvas.setActiveObject(object) : canvas.remove(object);
                 // 重新渲染画布
-                canvas.renderAll();
+                canvas.requestRenderAll();
                 break;
             }
         }
     }
+
     const clearActiveObjectAll = (canvasObj: any) => {
         for (let key in canvasObj) {
-            canvasObj[key].clear()
-            canvasObj[key].renderAll();
+            const objects = canvasObj[key].getObjects();
+            for (let i = objects.length - 1; i >= 0; i--) {
+                if (!canvasObj[key].backgroundImage || objects[i] !== canvasObj[key].backgroundImage) {
+                    canvasObj[key].remove(objects[i]);
+                }
+            }
+            canvasObj[key].requestRenderAll();
         }
     }
 
-    const scaleCanvas = (event:
-        {
-            page: string | number,
-            canvas: any, pdfCanvas: any,
-            context: any,
-            offscreenCanvas: any
-        }, opt: any) => {
+    const resetActiveObject = (canvasObj: any) => {
+        const initialVpt = [1, 0, 0, 1, 0, 0];
+        for (let key in canvasObj) {
+            canvasObj[key].viewportTransform = initialVpt.slice();
+            canvasObj[key].requestRenderAll();
+        }
 
-        if (!opt || !event.canvas || !event.pdfCanvas || drawConfig.value.type != 'gesture') return
-        const minZoom = 1;
-        const maxZoom = 5;
-        // // 监听鼠标滚轮事件
-        const delta = opt.e.deltaY;
-        let zoom = event.canvas.getZoom();
-        const oldScale = zoom;
-        zoom *= 0.999 ** delta;
-        zoom = Math.max(minZoom, Math.min(maxZoom, zoom));
-        event.canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-        opt.e.preventDefault();
-        opt.e.stopPropagation();
-        event.canvas.renderAll();
-
-        // 计算鼠标在画布上的位置
-        const rect = event.pdfCanvas.getBoundingClientRect();
-        const mouseX = opt.e.clientX - rect.left;
-        const mouseY = opt.e.clientY - rect.top;
-        const zoomRatio = zoom / oldScale;
-        offsetX = (offsetX - mouseX) * zoomRatio + mouseX;
-        offsetY = (offsetY - mouseY) * zoomRatio + mouseY;
-        // 清空可见 canvas
-        event.context.clearRect(0, 0, event.pdfCanvas.width, event.pdfCanvas.height);
-        // 应用变换矩阵
-        event.context.setTransform(zoom, 0, 0, zoom, offsetX, offsetY);
-        // 从离屏 canvas 绘制内容到可见 canvas
-        event.context.drawImage(event.offscreenCanvas, 0, 0);
     }
+
+
 
     onMounted(() => {
         window.addEventListener('keydown', handleKeyDown);
@@ -286,6 +280,7 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         addImage,
         setActiveObject,
         clearActiveObjectAll,
-        scaleCanvas
+        scaleCanvas,
+        resetActiveObject
     }
 } 
