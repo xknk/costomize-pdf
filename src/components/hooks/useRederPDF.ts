@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-27 10:48:16
+ * @LastEditTime: 2025-04-27 11:25:03
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -90,7 +90,6 @@ export const useRederPdf = () => {
             fabricCanvas.on('mouse:move', drawLine.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
-                offscreenCanvas
             })) // 鼠标在画布上移动
             fabricCanvas.on('mouse:up', stopDrwa.bind(fabricCanvas, {
                 page: i - 1,
@@ -99,7 +98,6 @@ export const useRederPdf = () => {
             fabricCanvas.on('mouse:wheel', scaleCanvas.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
-                offscreenCanvas
             })) // 鼠标滚轮事件
 
             fabricCanvas.on('object:removed', saveState.bind(fabricCanvas, {
