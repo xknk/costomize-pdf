@@ -2,14 +2,10 @@
     <div class="pdf-view-box" ref="pageRefs">
         <div>
             <div class="canvas-wrapper" v-for="(pdf, index) in pagesCount" :key="index">
-                <!-- <canvas
-                    :data-index="index"
-                    class="pdf-box"
-                    :ref="(el:any) => (canvasRefs['canvas' + index] = el)"
-                ></canvas> -->
                 <canvas
                     class="annotation-canvas"
                     :id="`annotation-canvas_${index}`"
+                    :data-index="index"
                 ></canvas>
             </div>
         </div>
@@ -97,7 +93,7 @@ const emit = defineEmits([
 ]); // 传递缩略图数据
 const pageRefs = ref<any>(null); // 父级dom
 const canvasRefs = ref<any>([]); // pdf渲染Canvas
-const currenPage = ref<number | string>(0); // 当前页码
+const currenPage = ref<number | string>(1); // 当前页码
 const {
     getPdfUrlFunc,
     rederPdfFunc,
@@ -131,7 +127,6 @@ const initFunc = async () => {
     await getPdfUrlFunc(url.value);
     await rederPdfFunc(
         scale.value,
-        canvasRefs.value,
         istThumbnail.value,
         startLine,
         drawLine,
@@ -142,7 +137,7 @@ const initFunc = async () => {
     );
     useMountObserve(
         pageRefs.value,
-        canvasRefs.value,
+        fabricCanvasObj,
         pagesCount.value,
         debounce(getCanvasFunc, 300)
     );
@@ -155,8 +150,13 @@ const initFunc = async () => {
     });
 };
 
-const setPage = (currenPage: number) => {
-    setPageFunc(pageRefs.value, canvasRefs.value, currenPage);
+const setPage = (pageNum: number) => {
+    setPageFunc(
+        pageRefs.value,
+        fabricCanvasObj[`annotation-canvas_${+pageNum - 1}`],
+        pageNum - 1
+    );
+    currenPage.value = pageNum;
 };
 
 const getJson = () => {
@@ -172,7 +172,6 @@ const addTextFunc = () => {
         addText({
             page: +currenPage.value - 1,
             canvas: fabricCanvasObj[`annotation-canvas_${+currenPage.value - 1}`],
-            canvasRefs: canvasRefs.value[`canvas${+currenPage.value - 1}`],
         });
     });
 };
@@ -181,7 +180,6 @@ const addImageFunc = (imgUrl: string) => {
         {
             page: +currenPage.value - 1,
             canvas: fabricCanvasObj[`annotation-canvas_${+currenPage.value - 1}`],
-            canvasRefs: canvasRefs.value[`canvas${+currenPage.value - 1}`],
         },
         imgUrl
     );

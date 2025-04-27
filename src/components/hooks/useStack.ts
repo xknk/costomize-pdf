@@ -1,10 +1,10 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-22 15:58:56
- * @LastEditTime: 2025-04-25 09:02:28
+ * @LastEditTime: 2025-04-27 11:17:54
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useStack.ts
  */
-import { ref, toRefs } from "vue";
+import { ref } from "vue";
 
 export const useStack = () => {
     const undoStack: any = [];
@@ -37,23 +37,30 @@ export const useStack = () => {
             if (previousState.type === 'modify' || previousState.type === 'remove') {
                 const stateToRestore = undoStack[undoStack.length - 1]; // 获取上一个状态
                 stateToRestore.canvas.loadFromJSON(stateToRestore.state, () => {
-                    stateToRestore.canvas.renderAll();
+                    stateToRestore.canvas.requestRenderAll();
                     isUndo = false; // 设置为撤回状态
+                    storeQueue(previousState.page, previousState.canvas); // 存储当前操作的画布
+
                 });
-                storeQueue(previousState.page, previousState.canvas); // 存储当前操作的画布
             } else if (previousState?.state.objects.length === 1) {
                 // 如果只有一个对象，直接清空画布
-                previousState.canvas.clear();
+                const objects = previousState.canvas.getObjects();
+                for (let i = objects.length - 1; i >= 0; i--) {
+                    if (!previousState.canvas.backgroundImage || objects[i] !== previousState.canvas.backgroundImage) {
+                        previousState.canvas.remove(objects[i]);
+                    }
+                }
+                previousState.canvas.requestRenderAll();
                 storeQueue(previousState.page, previousState.canvas); // 存储当前操作的画布
                 isUndo = false; // 设置为撤回状态
             } else {
                 const objects = previousState.state.objects.slice(0, previousState.state.objects.length - 1); // 删除最后一个对象
                 const stateToRestore = previousState
                 previousState && previousState.canvas.loadFromJSON({ ...stateToRestore.state, objects }, () => {
-                    previousState.canvas.renderAll();
+                    previousState.canvas.requestRenderAll();
                     isUndo = false; // 设置为撤回状态
+                    storeQueue(previousState.page, previousState.canvas); // 存储当前操作的画布
                 });
-                storeQueue(previousState.page, previousState.canvas); // 存储当前操作的画布
             }
 
         }
@@ -68,7 +75,7 @@ export const useStack = () => {
             // 保存当前状态到撤回栈
             undoStack.push(stateToRestore);
             stateToRestore.canvas.loadFromJSON(stateToRestore.state, () => {
-                stateToRestore.canvas.renderAll();
+                stateToRestore.canvas.requestRenderAll();
                 isUndo = false; // 设置为撤回状态
             });
             storeQueue(stateToRestore.page, stateToRestore.canvas); // 存储当前操作的画布

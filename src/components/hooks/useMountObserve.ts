@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 16:34:14
- * @LastEditTime: 2025-04-11 14:55:49
+ * @LastEditTime: 2025-04-27 10:47:50
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useMountObserve.ts
  */
 import { onMounted, onUnmounted, ref } from "vue";
@@ -21,7 +21,7 @@ export const useMountObserve = (pageRefs: HTMLElement,
             threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
         });
         for (let i = 0; i < pagesCount; i++) {
-            const canvas = canvasRefs[`canvas${i}`];
+            const canvas = canvasRefs[`annotation-canvas_${i}`].lowerCanvasEl;
             if (canvas) {
                 observer.observe(canvas);
             }
