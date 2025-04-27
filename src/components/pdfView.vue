@@ -2,11 +2,11 @@
     <div class="pdf-view-box" ref="pageRefs">
         <div>
             <div class="canvas-wrapper" v-for="(pdf, index) in pagesCount" :key="index">
-                <canvas
+                <!-- <canvas
                     :data-index="index"
                     class="pdf-box"
                     :ref="(el:any) => (canvasRefs['canvas' + index] = el)"
-                ></canvas>
+                ></canvas> -->
                 <canvas
                     class="annotation-canvas"
                     :id="`annotation-canvas_${index}`"
@@ -115,6 +115,8 @@ const {
     addImage,
     setActiveObject,
     clearActiveObjectAll,
+    scaleCanvas,
+    resetActiveObject,
 } = useLine(drawConfig, saveState);
 const { save, down } = useSave();
 const getCanvasFunc = (event: string | number) => {
@@ -134,6 +136,7 @@ const initFunc = async () => {
         startLine,
         drawLine,
         stopDrwa,
+        scaleCanvas,
         saveState,
         jsonData.value
     );
@@ -213,6 +216,7 @@ defineExpose({
     setActiveObject: setActiveObjectFunc,
     removeActiveObject: removeActiveObjectFunc,
     clearActiveObjectAll: clearActiveObjectAll.bind(this, fabricCanvasObj),
+    resetActiveObject: resetActiveObject.bind(this, fabricCanvasObj),
 });
 </script>
 <style scoped>

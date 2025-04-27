@@ -102,11 +102,13 @@
                         :class="`${item.icon} ${item.class} ${
                             selectIcon == item.type ? 'select-icon-box' : ''
                         }`"
+                        :title="item.title"
                     ></i>
                 </el-upload>
                 <i
                     v-else
                     class="iconfont"
+                    :title="item.title"
                     :class="`${item.icon} ${item.class} ${
                         selectIcon == item.type ? 'select-icon-box' : ''
                     }`"
@@ -114,12 +116,22 @@
             </div>
         </div>
         <div class="one-option-box">
-            <div v-for="item in revokeOptions" :key="item.icon" @click="revokeFunc(item)">
+            <div
+                v-for="item in revokeOptions"
+                :key="item.icon"
+                @click="revokeFunc(item)"
+                :title="item.title"
+            >
                 <i :class="`iconfont ${item.icon}`"></i>
             </div>
         </div>
         <div class="one-option-box">
-            <div v-for="item in downOptions" :key="item.icon" @click="saveFunc(item)">
+            <div
+                v-for="item in downOptions"
+                :key="item.icon"
+                @click="saveFunc(item)"
+                :title="item.title"
+            >
                 <i :class="`iconfont ${item.icon}`"></i>
             </div>
         </div>

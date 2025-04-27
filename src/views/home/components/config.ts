@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-09 16:41:37
- * @LastEditTime: 2025-04-24 11:13:18
+ * @LastEditTime: 2025-04-27 09:40:04
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\components\config.ts
  */
 export const lineOptions = [
@@ -59,22 +59,23 @@ export const fontOptions = [
     { value: 50 },
 ];
 export const iconOptions = [
-    // { icon: 'icon-shou', class: 'tree-icon-box', type: 'gesture' },
-    { icon: 'icon-bianji', class: 'tree-icon-box', type: 'draw' },
-    { icon: 'icon-zitishezhi', class: 'tree-icon-box', type: 'text', },
-    { icon: 'icon-yuanxingweixuanzhong', class: 'tree-icon-box', type: 'round' },
-    { icon: 'icon-juxing', class: 'one-icon-box', type: 'rect', },
+    { icon: 'icon-shou', class: 'tree-icon-box', type: 'gesture', title: '手势' },
+    { icon: 'icon-bianji', class: 'tree-icon-box', type: 'draw', title: '画笔' },
+    { icon: 'icon-zitishezhi', class: 'tree-icon-box', type: 'text', title: '文本' },
+    { icon: 'icon-yuanxingweixuanzhong', class: 'tree-icon-box', type: 'round', title: '圆形' },
+    { icon: 'icon-juxing', class: 'one-icon-box', type: 'rect', title: '矩形' },
     // { icon: 'icon-relieve-full', class: 'tree-icon-box', type: 'peg' },
-    { icon: 'icon-tupian', class: 'tree-icon-box', type: 'image' },
+    { icon: 'icon-tupian', class: 'tree-icon-box', type: 'image', title: '图片' },
+    { icon: 'icon-fuwei', class: 'one-icon-box', type: 'reset', title: '复位' },
 ]
 
 export const revokeOptions = [
-    { icon: 'icon-chehui two-icon-box', type: 'revoke' },
-    { icon: 'icon-fanchehui tree-icon-box', type: 'reverse_revoke' },
-    { icon: 'icon-15qingkong-1 four-icon-box', type: 'clear' },
+    { icon: 'icon-chehui two-icon-box', type: 'revoke', title: '撤销' },
+    { icon: 'icon-fanchehui tree-icon-box', type: 'reverse_revoke', title: '反撤销' },
+    { icon: 'icon-15qingkong-1 four-icon-box', type: 'clear', title: '清空' },
 ]
 
 export const downOptions = [
-    { icon: 'icon-baocun two-icon-box', type: 'save', },
-    { icon: 'icon-xiazai tree-icon-box', type: 'down' },
+    { icon: 'icon-baocun two-icon-box', type: 'save', title: '保存' },
+    { icon: 'icon-xiazai tree-icon-box', type: 'down', title: '下载' },
 ]

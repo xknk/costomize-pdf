@@ -3,15 +3,21 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-24 11:21:34
+ * @LastEditTime: 2025-04-27 09:34:32
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
 export const useLine = (drawConfig: any, saveState: Function) => {
     let isDraw = false // 是否可以开始画线
+    let isMoveCanvas = false // 是否可以移动画布
     let currentObjet: any = null // 临时操作对象
     let longPressTimer: number | null = null; // 判读是否长按
     let fabricCanvas: any
     let downPoint: any
+    let lastPosX = 0;
+    let lastPosY = 0;
+    // 初始偏移量
+    let offsetX = 0;
+    let offsetY = 0;
     const startLine = async (event: { page: string, canvas: any }, e: any) => {
         if (!e || !event.canvas) return
         fabricCanvas = event.canvas
@@ -58,12 +64,27 @@ export const useLine = (drawConfig: any, saveState: Function) => {
                 id: `rect_${new Date().getTime()}`,
             });
             event.canvas.add(currentObjet);
-
+        } else if (drawConfig.value.type === "gesture") {
+            const evt = e.e;
+            if (evt.which === 1) {
+                isMoveCanvas = true
+                lastPosX = evt.clientX;
+                lastPosY = evt.clientY;
+            }
         }
     }
-    const drawLine = (event: { page: string, canvas: any }, e: any) => {
+    const drawLine = (event: {
+        page: string, canvas: any, context: any,
+        pdfCanvas: any, offscreenCanvas: any
+    }, e: any) => {
         longPressTimer && clearTimeout(longPressTimer);
-        if (!e || !isDraw) return
+        if (!e || isDraw) {
+            DrwaLine(event, e)
+        } else if (!e || isMoveCanvas) {
+            moveCavnas(event, e)
+        }
+    }
+    const DrwaLine = (event: { page: string, canvas: any }, e: any) => {
         const pointer = event.canvas.getPointer(e.e);
         if (drawConfig.value.type === 'draw') {
             currentObjet.set({ x2: pointer.x, y2: pointer.y });
@@ -86,7 +107,6 @@ export const useLine = (drawConfig: any, saveState: Function) => {
             });
             event.canvas.requestRenderAll();
         }
-
     }
     const stopDrwa = (event: { page: string, canvas: any }, e: any) => {
         if (isDraw) {
@@ -95,12 +115,50 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         isDraw = false
         longPressTimer && clearTimeout(longPressTimer);
         currentObjet = null
+        isMoveCanvas = false
         // event.canvas.discardActiveObject();
         // event.canvas.renderAll();
     }
+    const moveCavnas = (event: {
+        page: string | number, canvas: any, context: any,
+        pdfCanvas: any, offscreenCanvas: any
+    }, e: any) => {
+        const evt = e.e;
+        const deltaX = evt.clientX - lastPosX;
+        const deltaY = evt.clientY - lastPosY;
+        lastPosX = evt.clientX;
+        lastPosY = evt.clientY;
+        const vpt = event.canvas.viewportTransform;
+        vpt[4] += deltaX;
+        vpt[5] += deltaY;
+        event.canvas.requestRenderAll();
+    }
+
+    const scaleCanvas = (event:
+        {
+            page: string | number,
+            canvas: any,
+            offscreenCanvas: any
+        }, opt: any) => {
+
+        if (!opt || !event.canvas || drawConfig.value.type != 'gesture') return
+        const minZoom = 1;
+        const maxZoom = 5;
+        // // 监听鼠标滚轮事件
+        const delta = opt.e.deltaY;
+        let zoom = event.canvas.getZoom();
+        zoom *= 0.999 ** delta;
+        zoom = Math.max(minZoom, Math.min(maxZoom, zoom));
+        event.canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+        opt.e.preventDefault();
+        opt.e.stopPropagation();
+        event.canvas.requestRenderAll();
+    }
+
+
+
     const addText = (event: { page: string | number, canvas: any, canvasRefs: any }) => {
         if (!event || !event.canvas || !event.canvasRefs) return
-        fabricCanvas = event.canvas
         const pointer = getPointer(event.canvasRefs);
         const currentIText = new fabric.IText("双击输入文本", {
             left: pointer.x,
@@ -133,17 +191,16 @@ export const useLine = (drawConfig: any, saveState: Function) => {
             // 将图片添加到画布
             event.canvas.add(img);
             // 渲染画布
-            event.canvas.renderAll();
+            event.canvas.requestRenderAll();
             saveState({ ...event, type: 'add' })
         });
     }
     const handleKeyDown = (e: { key: string }) => {
         if (e.key === 'Delete') {
             const activeObject = fabricCanvas.getActiveObject();
-            // && activeObject.type === 'i-text' || activeObject.type === 'line'
             if (activeObject) {
                 fabricCanvas.remove(activeObject);
-                fabricCanvas.renderAll();
+                fabricCanvas.requestRenderAll();
             }
         }
     };
@@ -174,17 +231,34 @@ export const useLine = (drawConfig: any, saveState: Function) => {
                 // 将具有指定 ID 的元素设置为活动对象
                 type === "setActive" ? canvas.setActiveObject(object) : canvas.remove(object);
                 // 重新渲染画布
-                canvas.renderAll();
+                canvas.requestRenderAll();
                 break;
             }
         }
     }
+
     const clearActiveObjectAll = (canvasObj: any) => {
         for (let key in canvasObj) {
-            canvasObj[key].clear()
-            canvasObj[key].renderAll();
+            const objects = canvasObj[key].getObjects();
+            for (let i = objects.length - 1; i >= 0; i--) {
+                if (!canvasObj[key].backgroundImage || objects[i] !== canvasObj[key].backgroundImage) {
+                    canvasObj[key].remove(objects[i]);
+                }
+            }
+            canvasObj[key].requestRenderAll();
         }
     }
+
+    const resetActiveObject = (canvasObj: any) => {
+        const initialVpt = [1, 0, 0, 1, 0, 0];
+        for (let key in canvasObj) {
+            canvasObj[key].viewportTransform = initialVpt.slice();
+            canvasObj[key].requestRenderAll();
+        }
+
+    }
+
+
 
     onMounted(() => {
         window.addEventListener('keydown', handleKeyDown);
@@ -205,6 +279,8 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         addText,
         addImage,
         setActiveObject,
-        clearActiveObjectAll
+        clearActiveObjectAll,
+        scaleCanvas,
+        resetActiveObject
     }
 } 
