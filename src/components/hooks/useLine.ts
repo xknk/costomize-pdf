@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-27 11:10:26
+ * @LastEditTime: 2025-04-27 11:24:32
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
 export const useLine = (drawConfig: any, saveState: Function) => {
@@ -120,8 +120,7 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         // event.canvas.renderAll();
     }
     const moveCavnas = (event: {
-        page: string | number, canvas: any, context: any,
-        pdfCanvas: any, offscreenCanvas: any
+        page: string | number, canvas: any,
     }, e: any) => {
         const evt = e.e;
         const deltaX = evt.clientX - lastPosX;
@@ -138,7 +137,6 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         {
             page: string | number,
             canvas: any,
-            offscreenCanvas: any
         }, opt: any) => {
 
         if (!opt || !event.canvas || drawConfig.value.type != 'gesture') return
