@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-27 09:34:32
+ * @LastEditTime: 2025-04-27 11:10:26
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
 export const useLine = (drawConfig: any, saveState: Function) => {
@@ -24,7 +24,7 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         const pointer = event.canvas.getPointer(e.e);
         if (e.target) {
             event.canvas.setActiveObject(e.target);
-            event.canvas.renderAll();
+            event.canvas.requestRenderAll();
         } else if (drawConfig.value.type === "draw") {
             isDraw = true
             currentObjet = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y], {
@@ -157,9 +157,9 @@ export const useLine = (drawConfig: any, saveState: Function) => {
 
 
 
-    const addText = (event: { page: string | number, canvas: any, canvasRefs: any }) => {
-        if (!event || !event.canvas || !event.canvasRefs) return
-        const pointer = getPointer(event.canvasRefs);
+    const addText = (event: { page: string | number, canvas: any }) => {
+        if (!event || !event.canvas) return
+        const pointer = getPointer(event.canvas.lowerCanvasEl);
         const currentIText = new fabric.IText("双击输入文本", {
             left: pointer.x,
             top: pointer.y,
@@ -174,10 +174,10 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         event.canvas.requestRenderAll();
         saveState({ ...event, type: 'add' })
     }
-    const addImage = (event: { page: string | number, canvas: any, canvasRefs: any }, imageUrl: string) => {
-        if (!event || !event.canvas || !event.canvasRefs) return
+    const addImage = (event: { page: string | number, canvas: any }, imageUrl: string) => {
+        if (!event || !event.canvas) return
         fabricCanvas = event.canvas
-        const pointer = getPointer(event.canvasRefs);
+        const pointer = getPointer(event.canvas.lowerCanvasEl);
         // 使用 fabric.Image.fromURL 加载图片
         fabric.Image.fromURL(imageUrl, (img: any) => {
             // 设置图片的位置

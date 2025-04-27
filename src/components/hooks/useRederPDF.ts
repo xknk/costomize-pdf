@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-27 09:17:07
+ * @LastEditTime: 2025-04-27 10:48:16
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -44,13 +44,11 @@ export const useRederPdf = () => {
     /**
      * @description: 渲染pdf与pdf-lib
      * @param {number} scale // 放大倍数
-     * @param {any} canvasRefs // pdfCanvas
      * @param {boolean} istThumbnail // 是否产生缩略图
      * @return {*}
      */
     const rederPdfFunc = async (
         scale: number,
-        canvasRefs: any,
         istThumbnail: boolean = false,
         startLine: Function,
         drawLine: Function,
@@ -153,8 +151,8 @@ export const useRederPdf = () => {
         }
     }
     const setPageFunc = (pageRefs: HTMLElement | null, canvasRefs: Record<string, HTMLElement>, currenPage: number) => {
-        if (!pageRefs || !canvasRefs[`canvas${currenPage - 1}`]) return;
-        const targetScrollTop = canvasRefs[`canvas${currenPage - 1}`].offsetHeight * (currenPage - 1);
+        if (!pageRefs || !canvasRefs) return;
+        const targetScrollTop = canvasRefs.lowerCanvasEl.offsetHeight * (currenPage);
         const startScrollTop = pageRefs.scrollTop;
         const duration = 300; // 动画持续时间，单位毫秒
         const startTime = performance.now();
