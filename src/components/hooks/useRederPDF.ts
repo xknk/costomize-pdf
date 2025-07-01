@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-07-01 15:07:24
+ * @LastEditTime: 2025-07-01 15:46:25
  * @FilePath: \lgeqd:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -24,6 +24,23 @@ interface TsThumbnail {
     thumbnailInfo?: { imgUrl: string; pageIndex: number }[]
 }
 export const useRederPdf = () => {
+    var defaultOnTouchStartHandler = fabric.Canvas.prototype._onTouchStart;
+    fabric.util.object.extend(fabric.Canvas.prototype, {
+        _onTouchStart: function (e: any) {
+            var target = this.findTarget(e);
+            // if allowTouchScrolling is enabled, no object was at the
+            // the touch position and we're not in drawing mode, then 
+            // let the event skip the fabricjs canvas and do default
+            // behavior
+            if (this.allowTouchScrolling && !target && !this.isDrawingMode) {
+                // returning here should allow the event to propagate and be handled
+                // normally by the browser
+                return;
+            }
+            // otherwise call the default behavior
+            defaultOnTouchStartHandler.call(this, e);
+        }
+    });
     let pdfDoc: any = null;
     const pdfUrl = ref<string>("")
     const pagesCount = ref<number>(0)
@@ -93,7 +110,8 @@ export const useRederPdf = () => {
                 width: viewport.width,
                 height: viewport.height,
                 isDrawingMode: false,
-                enableRetinaScaling: false // 禁用 Retina 缩放
+                enableRetinaScaling: false, // 禁用 Retina 
+                allowTouchScrolling: false,
             });
 
             if (!fabricCanvas) {

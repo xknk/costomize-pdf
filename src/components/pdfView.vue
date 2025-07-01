@@ -1,12 +1,18 @@
 <template>
     <div class="pdf-view-box" ref="pageRefs">
-        <div class="pdf-view-reder-box">
+        <div class="pdf-view-reder-box" @touchstart="() => {}" @touchmove="() => {}">
             <div class="canvas-wrapper" v-for="(pdf, index) in pagesCount" :key="index">
                 <canvas
                     class="annotation-canvas"
                     :id="`annotation-canvas_${index}`"
                     :data-index="index"
                 ></canvas>
+                <div
+                    class="scroll-handle"
+                    @touchstart.stop
+                    @touchmove.stop
+                    @touchend.stop
+                ></div>
             </div>
         </div>
     </div>
@@ -240,4 +246,18 @@ defineExpose({
     left: 0;
     margin: 0;
 } */
+.scroll-overlay {
+    /* position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2; */
+    pointer-events: none; /* 允许事件穿透到Canvas */
+    /* 定义可滚动区域 */
+    &.scrollable {
+        pointer-events: auto;
+        background: transparent;
+    }
+}
 </style>
