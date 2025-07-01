@@ -1,6 +1,6 @@
 <template>
     <div class="pdf-view-box" ref="pageRefs">
-        <div>
+        <div class="pdf-view-reder-box">
             <div class="canvas-wrapper" v-for="(pdf, index) in pagesCount" :key="index">
                 <canvas
                     class="annotation-canvas"
@@ -225,10 +225,14 @@ defineExpose({
     justify-content: center;
     overflow-y: auto;
 }
+.pdf-view-reder-box {
+    width: 100%;
+    /* height: 100%; */
+}
 .canvas-wrapper {
     position: relative;
     width: 100%;
-    height: 100%;
+    /* height: 100%; */
 }
 canvas {
     position: absolute;
@@ -242,8 +246,8 @@ canvas {
     z-index: -1;
 }
 .annotation-canvas {
-    width: 100%;
-    height: 100%;
+    width: 100% !important;
+    height: 100% !important;
     position: absolute;
 }
 </style>

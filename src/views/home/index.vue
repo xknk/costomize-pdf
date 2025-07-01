@@ -229,7 +229,8 @@ const delectAnnotationsFunc = ({ id, pageNum }: { id: string; pageNum: string })
     align-items: center;
 }
 .preview-box {
-    width: 18rem;
+    max-width: 18rem;
+    width: 20%;
     height: 100%;
     background-color: #f5f5f5;
     border-right: 1px solid #c2c2c2;

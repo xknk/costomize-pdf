@@ -1,8 +1,8 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-04-27 11:25:03
- * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
+ * @LastEditTime: 2025-07-01 10:08:04
+ * @FilePath: \lgeqd:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
     defineComponent,
@@ -63,75 +63,100 @@ export const useRederPdf = () => {
         const thumbnailArr: string[] = []; // 缩略图
         const thumbnailInfoArr: { imgUrl: string; pageIndex: number }[] = [];
         pagesCount.value = pdf.numPages;
+
         for (let i = 1; i <= pagesCount.value; i++) {
             const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale }); // 设置合适的缩放比例
+
+            // 获取实际容器元素
+            const containerEl = document.querySelector('.pdf-view-reder-box');
+            const containerWidth = containerEl ? containerEl.clientWidth : 0;
+            // 原始视口尺寸
+            const originalViewport = page.getViewport({ scale });
+
+            // 计算实际缩放比例
+            let actualScale = scale;
+            if (containerWidth && containerWidth < originalViewport.width) {
+                actualScale = scale * (containerWidth / originalViewport.width);
+            }
+
+            // 使用调整后的缩放比例创建视口
+            const viewport = page.getViewport({ scale: actualScale });
+
             // 创建离屏 canvas 元素
             const offscreenCanvas = document.createElement('canvas');
             const offscreenCtx = offscreenCanvas.getContext('2d');
             offscreenCanvas.width = viewport.width;
             offscreenCanvas.height = viewport.height;
 
-            const fabricCanvas = new fabric.Canvas(`annotation-canvas_${i - 1}`, {
+            const canvasId = `annotation-canvas_${i - 1}`;
+            const fabricCanvas = new fabric.Canvas(canvasId, {
                 width: viewport.width,
                 height: viewport.height,
                 isDrawingMode: false,
-            })
+                enableRetinaScaling: false // 禁用 Retina 缩放
+            });
+
             if (!fabricCanvas) {
                 break;
             }
-            fabricCanvas.selectionColor = 'transparent'
-            fabricCanvas.selectionBorderColor = 'transparent'
-            // fabricCanvas.skipTargetFind = true // 禁止选中
+
+            fabricCanvas.selectionColor = 'transparent';
+            fabricCanvas.selectionBorderColor = 'transparent';
+
+            // 事件绑定保持不变
             fabricCanvas.on('mouse:down', startLine.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
-            })) // 鼠标在画布上按下
+            }));
             fabricCanvas.on('mouse:move', drawLine.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
-            })) // 鼠标在画布上移动
+            }));
             fabricCanvas.on('mouse:up', stopDrwa.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
-            })) // 鼠标在画布上移动
+            }));
             fabricCanvas.on('mouse:wheel', scaleCanvas.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
-            })) // 鼠标滚轮事件
-
+            }));
             fabricCanvas.on('object:removed', saveState.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
                 type: 'remove'
-            })) // 删除元素
+            }));
             fabricCanvas.on('object:modified', saveState.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
                 type: 'modify'
-            })) // 更新元素
-            fabricCanvasObj[`annotation-canvas_${i - 1}`] = fabricCanvas
-            const dataObj = jsonData[`annotation-canvas_${i - 1}`]
+            }));
+
+            fabricCanvasObj[canvasId] = fabricCanvas;
+
+            const dataObj = jsonData[canvasId];
             dataObj && fabricCanvas.loadFromJSON(dataObj, () => {
-                // 加载完成后渲染画布
                 fabricCanvas.renderAll();
             });
+
             const renderContext: any = {
                 canvasContext: offscreenCtx,
                 viewport: viewport,
             };
-            // await // 渲染页面到离屏 canvas
-            await page.render(renderContext).promise
+
+            await page.render(renderContext).promise;
+
             const bgImage = new fabric.Image(offscreenCanvas, {
                 left: 0,
                 top: 0,
                 width: viewport.width,
                 height: viewport.height
             });
+
             fabricCanvas.setBackgroundImage(bgImage, fabricCanvas.renderAll.bind(fabricCanvas), {
                 scaleX: fabricCanvas.width / viewport.width,
                 scaleY: fabricCanvas.height / viewport.height
             });
+
             if (istThumbnail) {
                 const imageUrl = offscreenCanvas.toDataURL("image/png");
                 thumbnailArr.push(imageUrl);
@@ -141,19 +166,22 @@ export const useRederPdf = () => {
                 });
             }
         }
+
         if (istThumbnail) {
             thumbnailObj.value = {
                 thumbnail: thumbnailArr,
                 thumbnailInfo: thumbnailInfoArr,
-            }
+            };
         }
     }
+
     const setPageFunc = (pageRefs: HTMLElement | null, canvasRefs: Record<string, HTMLElement>, currenPage: number) => {
         if (!pageRefs || !canvasRefs) return;
         const targetScrollTop = canvasRefs.lowerCanvasEl.offsetHeight * (currenPage);
         const startScrollTop = pageRefs.scrollTop;
-        const duration = 300; // 动画持续时间，单位毫秒
+        const duration = 300;
         const startTime = performance.now();
+
         const animateScroll = (currentTime: number) => {
             const elapsedTime = currentTime - startTime;
             if (elapsedTime < duration) {
@@ -164,8 +192,10 @@ export const useRederPdf = () => {
                 pageRefs.scrollTop = targetScrollTop;
             }
         };
+
         requestAnimationFrame(animateScroll);
     };
+
     return {
         getPdfUrlFunc,
         rederPdfFunc,

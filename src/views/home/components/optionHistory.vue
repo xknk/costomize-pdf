@@ -75,7 +75,8 @@ const delectAnnotationsFunc = (id: string, pageNum: string) => {
 
 <style scoped>
 .option-history-box {
-    width: 18rem;
+    max-width: 18rem;
+    width: 20%;
     height: 100%;
     overflow: auto;
     background-color: #f5f5f5;
