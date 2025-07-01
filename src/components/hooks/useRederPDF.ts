@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-07-01 10:08:04
+ * @LastEditTime: 2025-07-01 15:07:24
  * @FilePath: \lgeqd:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import {
@@ -108,14 +108,32 @@ export const useRederPdf = () => {
                 page: i - 1,
                 canvas: fabricCanvas,
             }));
+            fabricCanvas.on('touch:start', startLine.bind(fabricCanvas, {
+                page: i - 1,
+                canvas: fabricCanvas,
+            }));
+
             fabricCanvas.on('mouse:move', drawLine.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
             }));
+
+            fabricCanvas.on('touch:move', drawLine.bind(fabricCanvas, {
+                page: i - 1,
+                canvas: fabricCanvas,
+            }));
+
             fabricCanvas.on('mouse:up', stopDrwa.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,
             }));
+
+            fabricCanvas.on('touch:end', stopDrwa.bind(fabricCanvas, {
+                page: i - 1,
+                canvas: fabricCanvas,
+            }));
+
+
             fabricCanvas.on('mouse:wheel', scaleCanvas.bind(fabricCanvas, {
                 page: i - 1,
                 canvas: fabricCanvas,

@@ -227,27 +227,17 @@ defineExpose({
 }
 .pdf-view-reder-box {
     width: 100%;
-    /* height: 100%; */
 }
 .canvas-wrapper {
-    position: relative;
+    /* position: relative; */
     width: 100%;
-    /* height: 100%; */
+    display: flex;
+    justify-content: center;
 }
-canvas {
+/* canvas {
     position: absolute;
     top: 0;
     left: 0;
     margin: 0;
-}
-.pdf-box {
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-}
-.annotation-canvas {
-    width: 100% !important;
-    height: 100% !important;
-    position: absolute;
-}
+} */
 </style>

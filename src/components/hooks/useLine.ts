@@ -3,8 +3,8 @@ import { onMounted, onUnmounted, watch } from "vue"
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-14 10:17:46
- * @LastEditTime: 2025-04-27 11:24:32
- * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
+ * @LastEditTime: 2025-07-01 15:11:53
+ * @FilePath: \lgeqd:\自己搭建\vue\customize-pdf\src\components\hooks\useLine.ts
  */
 export const useLine = (drawConfig: any, saveState: Function) => {
     let isDraw = false // 是否可以开始画线
@@ -18,6 +18,16 @@ export const useLine = (drawConfig: any, saveState: Function) => {
     // 初始偏移量
     let offsetX = 0;
     let offsetY = 0;
+
+    // 触摸状态
+    let isPinching = false;
+    let lastDistance = 0;
+    let initialZoom = 0;
+    // 新增：触摸开始时的偏移量
+    let touchOffsetX = 0;
+    let touchOffsetY = 0;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
     const startLine = async (event: { page: string, canvas: any }, e: any) => {
         if (!e || !event.canvas) return
         fabricCanvas = event.canvas
@@ -68,8 +78,25 @@ export const useLine = (drawConfig: any, saveState: Function) => {
             const evt = e.e;
             if (evt.which === 1) {
                 isMoveCanvas = true
-                lastPosX = evt.clientX;
-                lastPosY = evt.clientY;
+                lastPosX = getClientX(e.e);
+                lastPosY = getClientY(e.e);
+            } else if (e.e.touches && e.e.touches.length === 1) { // 单指触摸
+                isMoveCanvas = true;
+                // 计算触摸点与画布的偏移量（关键修复点）
+                const clientX = getClientX(e.e);
+                const clientY = getClientY(e.e);
+                const vpt = event.canvas.viewportTransform;
+                touchOffsetX = clientX - (vpt[4] || 0);
+                touchOffsetY = clientY - (vpt[5] || 0);
+                lastPosX = clientX;
+                lastPosY = clientY;
+            } else if (e.e.touches && e.e.touches.length === 2) {
+                // 处理手势模式 - 移动端（双指缩放）
+                isPinching = true;
+                const touch1 = e.e.touches[0];
+                const touch2 = e.e.touches[1];
+                lastDistance = calculateDistance(touch1, touch2);
+                initialZoom = event.canvas.getZoom();
             }
         }
     }
@@ -80,8 +107,14 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         longPressTimer && clearTimeout(longPressTimer);
         if (!e || isDraw) {
             DrwaLine(event, e)
+        } else if (isMoveCanvas && isMobile) {
+            moveCavnasMobile(event, e);
+
         } else if (!e || isMoveCanvas) {
             moveCavnas(event, e)
+        } else if (isPinching && e.e.touches && e.e.touches.length === 2) {
+            // 处理双指缩放
+            handlePinchZoom(event, e);
         }
     }
     const DrwaLine = (event: { page: string, canvas: any }, e: any) => {
@@ -116,6 +149,9 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         longPressTimer && clearTimeout(longPressTimer);
         currentObjet = null
         isMoveCanvas = false
+        isPinching = false
+        touchOffsetX = 0;
+        touchOffsetY = 0;
         // event.canvas.discardActiveObject();
         // event.canvas.renderAll();
     }
@@ -130,6 +166,44 @@ export const useLine = (drawConfig: any, saveState: Function) => {
         const vpt = event.canvas.viewportTransform;
         vpt[4] += deltaX;
         vpt[5] += deltaY;
+        event.canvas.requestRenderAll();
+    }
+
+    const moveCavnasMobile = (event: {
+        page: string | number, canvas: any,
+    }, e: any) => {
+        if (!isMoveCanvas) return;
+        const clientX = getClientX(e.e);
+        const clientY = getClientY(e.e);
+        // // 使用触摸偏移量计算实际移动距离（关键修复点）
+        // const deltaX = clientX - lastPosX;
+        // const deltaY = clientY - lastPosY;
+        const vpt = event.canvas.viewportTransform;
+        vpt[4] = clientX - touchOffsetX; // 使用偏移量修正位置
+        vpt[5] = clientY - touchOffsetY;
+        lastPosX = clientX;
+        lastPosY = clientY;
+        event.canvas.requestRenderAll();
+    }
+    // 处理双指缩放
+    const handlePinchZoom = (event: { page: string | number, canvas: any }, e: any) => {
+        const touch1 = e.e.touches[0];
+        const touch2 = e.e.touches[1];
+        const currentDistance = calculateDistance(touch1, touch2);
+        // 计算缩放比例
+        const scaleRatio = currentDistance / lastDistance;
+        const minZoom = 1;
+        const maxZoom = 5;
+        // 计算新的缩放值
+        let zoom = initialZoom * scaleRatio;
+        zoom = Math.max(minZoom, Math.min(maxZoom, zoom));
+        // 计算缩放中心点
+        const midPoint = {
+            x: (touch1.clientX + touch2.clientX) / 2,
+            y: (touch1.clientY + touch2.clientY) / 2
+        };
+        // 应用缩放
+        event.canvas.zoomToPoint({ x: midPoint.x, y: midPoint.y }, zoom);
         event.canvas.requestRenderAll();
     }
 
@@ -219,6 +293,22 @@ export const useLine = (drawConfig: any, saveState: Function) => {
             pointer.y = rect.height - 50
         }
         return pointer
+    }
+
+    // 辅助函数优化：获取客户端坐标（明确事件类型处理）
+    const getClientX = (e: any) => {
+        return e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    }
+    // 辅助函数优化：获取客户端坐标（明确事件类型处理）
+    const getClientY = (e: any) => {
+        return e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    }
+
+    // 辅助函数：计算两点之间的距离
+    const calculateDistance = (point1: { clientX: number, clientY: number }, point2: { clientX: number, clientY: number }) => {
+        const dx = point2.clientX - point1.clientX;
+        const dy = point2.clientY - point1.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     const setActiveObject = (canvas: any, targetId: string, type = "setActive") => {
