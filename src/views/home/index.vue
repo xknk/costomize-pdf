@@ -1,32 +1,12 @@
 <!--
  * @Author: Robin LEI
  * @Date: 2025-04-09 13:52:46
- * @LastEditTime: 2025-04-27 09:37:25
+ * @LastEditTime: 2025-11-04 08:47:50
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\views\home\index.vue
 -->
 <template>
     <div class="home-box">
-        <TopOption
-            :currenPage="currenPage"
-            :total="total"
-            @changeSizeFunc="setPageNumFunc"
-            @hideLeftFunc="hidePreviewPdfFunc"
-            @optionPreviewFunc="optionPreviewFunc"
-            @selectOptionFunc="selectOptionFunc"
-            @saveFunc="saveFunc"
-            @revokeFunc="revokeFunc"
-        />
         <div class="home-main-box">
-            <div
-                :class="`preview-box ${isReviewPdf ? '' : 'collapsed'}`"
-                ref="previewDom"
-            >
-                <PreviewPdf
-                    :thumbnailArr.sync="thumbnailArr"
-                    :currenPage="currenPage"
-                    @setPageNumFunc="setPageNumFunc"
-                />
-            </div>
             <div class="mian-box">
                 <PdfView
                     ref="pdfDom"
@@ -40,11 +20,6 @@
                     :jsonData="storeAnnotationsJson"
                 />
             </div>
-            <optionHistory
-                :queueStackArr="queueStackArr"
-                @selectAnnotationsFunc="selectAnnotationsFunc"
-                @delectAnnotationsFunc="delectAnnotationsFunc"
-            />
         </div>
     </div>
 </template>

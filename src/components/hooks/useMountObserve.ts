@@ -1,13 +1,13 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 16:34:14
- * @LastEditTime: 2025-07-01 16:30:00
- * @FilePath: \lgeqd:\自己搭建\vue\customize-pdf\src\components\hooks\useMountObserve.ts
+ * @LastEditTime: 2025-11-04 17:18:20
+ * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useMountObserve.ts
  */
 import { onMounted, onUnmounted, ref } from "vue";
 
 export const useMountObserve = (pageRefs: HTMLElement,
-    canvasRefs: any, pagesCount: number,
+    pagesCount: number,
     callback: (arg: string | number) => void) => {
     let canvasIndex: string | number = 0;
     let observer: IntersectionObserver | null = null;
@@ -26,7 +26,8 @@ export const useMountObserve = (pageRefs: HTMLElement,
         });
 
         for (let i = 0; i < pagesCount; i++) {
-            const canvas = canvasRefs[`annotation-canvas_${i}`]?.lowerCanvasEl;
+            const canvasId = `#annotation-canvas_` + (i - 1)
+            const canvas: any = document.querySelector(canvasId); // 获取对应的canvas元素
             if (canvas) {
                 // 设置data-index属性以便识别
                 canvas.setAttribute("data-index", i.toString());
@@ -68,9 +69,7 @@ export const useMountObserve = (pageRefs: HTMLElement,
             callback((+canvasIndex + 1)); // 回调传递当前页面索引（从1开始）
         }
     };
-
     initFunc();
-
     onUnmounted(() => {
         if (observer) {
             observer.disconnect();
