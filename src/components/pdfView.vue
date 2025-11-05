@@ -39,7 +39,6 @@ import {
 import { useRederPdf } from "./hooks/useRederPDF";
 import { useMountObserve } from "./hooks/useMountObserve";
 import { debounce } from "@/utils";
-
 const props = defineProps({
     scale: {
         type: Number,
@@ -81,8 +80,19 @@ const {
 } = toRefs(props);
 const pageRefs = ref<any>(null); // 父级dom
 const currenPage = ref<number | string>(1); // 当前页码
-const { getPdfUrlFunc, rederPdfFunc, pagesCount, setPageFunc }: any = useRederPdf();
-
+const {
+    getPdfUrlFunc,
+    rederPdfFunc,
+    pagesCount,
+    setPageFunc,
+    getJosn,
+    setGlobalDrawMode,
+}: any = useRederPdf();
+const getJosnFunc = () => {
+    setGlobalDrawMode("line");
+    const allShapes = getJosn();
+    console.log(allShapes);
+};
 const getCanvasFunc = (event: string | number) => {};
 /**
  * @description: 初始化事件

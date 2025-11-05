@@ -1,7 +1,7 @@
 /*
  * @Author: Robin LEI
  * @Date: 2025-04-10 14:45:59
- * @LastEditTime: 2025-11-05 11:04:38
+ * @LastEditTime: 2025-11-05 16:42:57
  * @FilePath: \lg-wms-admind:\自己搭建\vue\customize-pdf\src\components\hooks\useRederPDF.ts
  */
 import { ref } from "vue"; // 移除未使用的API（defineComponent/reactive等）
@@ -225,7 +225,10 @@ export const useRederPdf = () => {
         requestAnimationFrame(animateScroll);
     };
 
-
+    const getJosn = () => {
+        const allShapes = drawHook.getAllShapes();
+        return allShapes
+    };
     // 11. 对外暴露API（包含绘制相关方法）
     return {
         getPdfUrlFunc,
@@ -236,6 +239,7 @@ export const useRederPdf = () => {
         setPageFunc,
         pdfUrl,
         pagesCount,
-        currentGlobalDrawMode, // 新增：暴露当前绘制模式（供组件显示）
+        currentGlobalDrawMode, // 新增：暴露当前绘制模式（供组件显示
+        getJosn,
     };
 };

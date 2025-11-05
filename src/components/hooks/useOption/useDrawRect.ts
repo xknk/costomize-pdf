@@ -1,6 +1,8 @@
 import { eTs, CanvasBaseState, createTempCanvas, getElementRectRelativeToParent, initCtxStyles, getCanvasPos, clearCommonAnnotations, destroyCommon } from './common/common';
+import { generateId } from './common/common'; // 假设存在此工具函数
 
-// 矩形的类型定义（新增updateTime时间戳，标记最后更新时间）
+
+// 矩形的类型定义
 export interface RectShape {
     id: string; // 唯一标识
     type: 'rect';
@@ -12,7 +14,9 @@ export interface RectShape {
     fillStyle: string;
     lineWidth: number;
     isSelected?: boolean; // 选中状态标记
-    updateTime: number; // 最后更新时间戳（创建/移动/缩放时更新）
+    updateTime: number; // 最后更新时间戳
+    timestamp: number; // 创建时间戳，用于排序
+    canvasId: string; // 所属画布ID
 }
 
 // 缩放控制点类型
@@ -48,6 +52,7 @@ interface RectCanvasState extends CanvasBaseState {
     };
     cleanupEvents: (() => void)[]; // 事件清理函数列表
     currentCursor: string; // 记录当前光标样式
+    canvasId: string; // 画布ID
 }
 
 const canvasStates: Record<string, RectCanvasState> = {};
@@ -57,9 +62,6 @@ const CONTROL_POINT_HIT_SIZE = 16;   // 控制点点击范围（扩大到16x16�
 const CONTROL_POINT_VISUAL_OFFSET = CONTROL_POINT_VISUAL_SIZE / 2; // 视觉偏移（用于绘制）
 const CONTROL_POINT_HIT_OFFSET = CONTROL_POINT_HIT_SIZE / 2;       // 点击偏移（用于判断命中）
 const MIN_RECT_SIZE = 10; // 矩形最小尺寸
-
-// 生成唯一ID
-const generateId = () => Math.random().toString(36).substr(2, 9);
 
 // 手动克隆矩形数据（包含updateTime）
 const cloneRect = (rect: RectShape): RectShape => {
@@ -74,7 +76,9 @@ const cloneRect = (rect: RectShape): RectShape => {
         fillStyle: rect.fillStyle,
         lineWidth: rect.lineWidth,
         isSelected: rect.isSelected ?? false,
-        updateTime: rect.updateTime // 克隆时间戳，保持层级不变
+        updateTime: rect.updateTime,
+        timestamp: rect.timestamp,
+        canvasId: rect.canvasId
     };
 };
 
@@ -166,7 +170,7 @@ const restoreOriginalBgAndRedrawAll = (state: RectCanvasState) => {
     const mainCtx = state.mainCtx;
     mainCtx.putImageData(state.originalCanvasBg, 0, 0);
 
-    // 遍历最新的drawedShapes，重绘所有矩形（按创建顺序，视觉上不影响层级，点击层级由时间戳控制）
+    // 遍历最新的drawedShapes，重绘所有矩形（按创建顺序）
     state.drawedShapes.forEach(rect => {
         mainCtx.save();
         mainCtx.strokeStyle = rect.strokeStyle;
@@ -228,7 +232,6 @@ const restoreTempSelectedRectToMain = (state: RectCanvasState) => {
     // 归位时保留更新后的时间戳（移动/缩放后的时间戳已更新）
     const finalRect = { ...tempRect, isSelected: false };
     state.drawedShapes.splice(originalRectIndex, 1, finalRect);
-    state.drawedShapes = [...state.drawedShapes]; // 强制刷新数组引用
 
     // 重绘所有矩形（确保主画布显示最新位置）
     restoreOriginalBgAndRedrawAll(state);
@@ -241,31 +244,9 @@ const restoreTempSelectedRectToMain = (state: RectCanvasState) => {
     state.dragStartPos = undefined;
 };
 
-// 从最新的drawedShapes中查找点击的矩形（按updateTime降序，优先最新更新的矩形）
-const findClickedRectInLatestShapes = (state: RectCanvasState, x: number, y: number): { rect?: RectShape; control: ControlPoint } => {
-    // 1. 克隆数组 + 按updateTime降序排序（最新更新的排在前面）
-    const sortedRects = state.drawedShapes
-        .map(cloneRect)
-        .sort((a, b) => b.updateTime - a.updateTime); // 降序：时间戳越大越靠前
-
-    let targetRect: RectShape | undefined;
-    let targetControl: ControlPoint = 'none';
-
-    // 2. 遍历排序后的数组，优先命中最新更新的矩形
-    for (const rect of sortedRects) {
-        const control = getControlPoint(x, y, rect);
-        if (control !== 'none') {
-            targetRect = rect;
-            targetControl = control;
-            break; // 找到第一个命中的（最新的）就退出
-        }
-    }
-
-    return { rect: targetRect, control: targetControl };
-};
-
+// 初始化画矩形功能
 export const useDrawRect = () => {
-    // 初始化画矩形功能（新增层级逻辑）
+    // 初始化画矩形
     const initDrawingByMouseMove = (
         canvasId: string,
         mainCanvas: HTMLCanvasElement,
@@ -276,13 +257,15 @@ export const useDrawRect = () => {
             lineWidth?: number;
         } = {}
     ) => {
+        // 矩形默认样式
         const defaultStyle = {
-            strokeStyle: '#ff0000',
-            rectFillStyle: 'rgba(255, 0, 0, 0.5)',
-            lineWidth: 3,
+            strokeStyle: '#ff0000', // 红色边框
+            rectFillStyle: 'rgba(255, 0, 0, 0.1)', // 红色半透明填充
+            lineWidth: 2,
         };
         const currentStyle = { ...defaultStyle, ...customStyle };
 
+        // 父容器定位处理
         const mainCanvasParent = mainCanvas.parentElement;
         if (!mainCanvasParent) throw new Error('主Canvas必须有直接父容器');
         if (getComputedStyle(mainCanvasParent).position !== 'relative') {
@@ -290,354 +273,381 @@ export const useDrawRect = () => {
             mainCanvasParent.style.overflow = 'visible';
         }
 
+        // 保存已有图形数据
+        const existingShapes = canvasStates[canvasId]?.drawedShapes || [];
+        const existingBg = canvasStates[canvasId]?.originalCanvasBg;
+
+        // 创建临时Canvas
         const tempCanvas = createTempCanvas(mainCanvas, mainCanvasParent, canvasId);
         const tempCtx = tempCanvas.getContext('2d');
         if (!tempCtx) throw new Error('浏览器不支持Canvas');
 
-        // 保存主画布原始背景（初始化时唯一一次获取）
-        const originalCanvasBg = mainCtx.getImageData(0, 0, mainCanvas.width, mainCanvas.height);
+        // 保存原始背景（不含批注的干净背景）
+        const originalCanvasBg = existingBg || mainCtx.getImageData(0, 0, mainCanvas.width, mainCanvas.height);
 
+
+        // 初始化矩形专属状态
         const cleanupEvents: (() => void)[] = [];
         canvasStates[canvasId] = {
+            canvasId,
             isDrawing: false,
             startX: 0,
             startY: 0,
+            drawedShapes: existingShapes, // 保留已有图形
             tempRect: undefined,
-            drawedShapes: [],
-            currentStyle,
+            selectedRectId: undefined,
+            activeControl: 'none',
+            dragStartPos: undefined,
+            tempSelectedRect: undefined,
             tempCanvas,
             tempCtx,
             mainCanvas,
             mainCtx,
             originalCanvasBg,
+            currentStyle: {
+                strokeStyle: currentStyle.strokeStyle,
+                rectFillStyle: currentStyle.rectFillStyle,
+                lineWidth: currentStyle.lineWidth,
+            },
             cleanupEvents,
-            selectedRectId: undefined,
-            activeControl: 'none',
-            tempSelectedRect: undefined,
             currentCursor: 'default'
         };
         const state = canvasStates[canvasId];
 
-        initCtxStyles(mainCtx, currentStyle);
-        initCtxStyles(tempCtx, currentStyle);
+        // 初始化样式
+        initCtxStyles(mainCtx, state.currentStyle);
+        initCtxStyles(tempCtx, state.currentStyle);
 
-        // 鼠标按下事件（保持激活时序，叠加层级判定）
+        // 重绘已有图形
+        redrawAllAnnotations(canvasId, mainCtx);
+
+        // 鼠标按下事件
         const handleMousedown = (e: MouseEvent) => {
             const evt = e as unknown as eTs;
             const { x, y } = getCanvasPos(evt, mainCanvas);
 
-            // 1. 强制重置所有状态
-            state.activeControl = 'none';
-            state.dragStartPos = undefined;
+            // 检查是否点击了现有矩形
+            const rects = [...state.drawedShapes].reverse(); // 逆序检查，优先顶层矩形
             let clickedRect: RectShape | undefined;
             let targetControl: ControlPoint = 'none';
-            let isClickOnActiveRect = false;
 
-            // 2. 优先判断点击当前激活的临时矩形（仅当临时矩形存在时）
-            if (state.tempSelectedRect) {
-                const clonedTempRect = cloneRect(state.tempSelectedRect);
-                targetControl = getControlPoint(x, y, clonedTempRect);
+            for (const rect of rects) {
+                targetControl = getControlPoint(x, y, rect);
                 if (targetControl !== 'none') {
-                    clickedRect = clonedTempRect;
-                    isClickOnActiveRect = true;
-                }
-            }
-
-            // 3. 未点击临时矩形：先归位，再从最新数据中查找点击目标（按层级排序）
-            if (!isClickOnActiveRect) {
-                restoreTempSelectedRectToMain(state);
-                const { rect, control } = findClickedRectInLatestShapes(state, x, y);
-                if (rect && control !== 'none') {
                     clickedRect = rect;
-                    targetControl = control;
+                    state.activeControl = targetControl;
+                    break;
                 }
             }
 
-            // 4. 处理点击逻辑
             if (clickedRect) {
-                if (!isClickOnActiveRect) {
-                    // 激活新矩形：基于归位后的最新数据
-                    state.selectedRectId = clickedRect.id;
-                    restoreOriginalBgAndRedrawOthers(state, clickedRect.id);
-                    state.tempSelectedRect = { ...cloneRect(clickedRect), isSelected: true };
-                    state.tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-                    state.tempCtx.save();
-                    state.tempCtx.strokeStyle = clickedRect.strokeStyle;
-                    state.tempCtx.fillStyle = clickedRect.fillStyle;
-                    state.tempCtx.lineWidth = clickedRect.lineWidth;
-                    state.tempCtx.beginPath();
-                    state.tempCtx.rect(clickedRect.x, clickedRect.y, clickedRect.width, clickedRect.height);
-                    state.tempCtx.fill();
-                    state.tempCtx.stroke();
-                    drawControlPoints(state.tempCtx, clickedRect);
-                    state.tempCtx.restore();
-                }
-
-                // 准备拖拽
-                state.activeControl = targetControl;
+                // 1. 更新选中状态（原子操作）
+                state.selectedRectId = clickedRect.id;
+                state.tempSelectedRect = cloneRect(clickedRect);
                 state.dragStartPos = { x, y };
+
+                // 2. 主画布：重绘除选中矩形外的其他图形（无延迟）
+                restoreOriginalBgAndRedrawOthers(state, clickedRect.id);
+
+                // 3. 临时画布：立即绘制选中矩形+控制点（关键优化：消除首次激活延迟）
+                state.tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+                state.tempCtx.save();
+                state.tempCtx.strokeStyle = clickedRect.strokeStyle;
+                state.tempCtx.fillStyle = clickedRect.fillStyle;
+                state.tempCtx.lineWidth = clickedRect.lineWidth;
+                state.tempCtx.beginPath();
+                state.tempCtx.rect(clickedRect.x, clickedRect.y, clickedRect.width, clickedRect.height);
+                state.tempCtx.fill();
+                state.tempCtx.stroke();
+                state.tempCtx.restore();
+                drawControlPoints(state.tempCtx, clickedRect);
+
+                // 4. 同步更新光标
                 updateCanvasCursor(state, targetControl);
-            } else {
-                // 点击空白区域：彻底归位，准备绘制新矩形
-                restoreTempSelectedRectToMain(state);
-                state.mainCanvas.style.cursor = 'crosshair';
-                state.tempCanvas.style.cursor = 'crosshair';
-                state.currentCursor = 'crosshair';
-                state.isDrawing = true;
-                state.startX = x;
-                state.startY = y;
-                state.tempRect = { x, y, width: 0, height: 0 };
+                return;
             }
+
+            // 未点击现有矩形，开始绘制新矩形
+            state.isDrawing = true;
+            state.startX = x;
+            state.startY = y;
+            state.tempRect = { x, y, width: 0, height: 0 };
         };
-        mainCanvas.addEventListener('mousedown', handleMousedown, { passive: true });
+        mainCanvas.addEventListener('mousedown', handleMousedown);
         cleanupEvents.push(() => mainCanvas.removeEventListener('mousedown', handleMousedown));
 
-        // 鼠标移动事件（移动/缩放时更新时间戳）
+        // 鼠标移动事件
         const handleMousemove = (e: MouseEvent) => {
             const evt = e as unknown as eTs;
-            const { x: currX, y: currY } = getCanvasPos(evt, mainCanvas);
+            const { x, y } = getCanvasPos(evt, mainCanvas);
 
-            // 1. 绘制新矩形逻辑
+
             if (state.isDrawing && state.tempRect) {
+                // 绘制临时矩形
                 state.tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-                const rectX = Math.min(state.startX, currX);
-                const rectY = Math.min(state.startY, currY);
-                const rectWidth = Math.max(MIN_RECT_SIZE, Math.abs(currX - state.startX));
-                const rectHeight = Math.max(MIN_RECT_SIZE, Math.abs(currY - state.startY));
+                state.tempRect.width = x - state.startX;
+                state.tempRect.height = y - state.startY;
 
                 state.tempCtx.save();
-                state.tempCtx.strokeStyle = currentStyle.strokeStyle;
-                state.tempCtx.fillStyle = currentStyle.rectFillStyle!;
-                state.tempCtx.lineWidth = currentStyle.lineWidth;
+                state.tempCtx.strokeStyle = state.currentStyle.strokeStyle;
+                state.tempCtx.fillStyle = state.currentStyle.rectFillStyle;
+                state.tempCtx.lineWidth = state.currentStyle.lineWidth;
                 state.tempCtx.beginPath();
-                state.tempCtx.rect(rectX, rectY, rectWidth, rectHeight);
+                state.tempCtx.rect(
+                    state.tempRect.x,
+                    state.tempRect.y,
+                    state.tempRect.width,
+                    state.tempRect.height
+                );
                 state.tempCtx.fill();
                 state.tempCtx.stroke();
-                drawControlPoints(state.tempCtx, {
-                    id: '',
-                    type: 'rect',
-                    x: rectX,
-                    y: rectY,
-                    width: rectWidth,
-                    height: rectHeight,
-                    strokeStyle: '',
-                    fillStyle: '',
-                    lineWidth: currentStyle.lineWidth,
-                    updateTime: Date.now() // 临时值，不影响最终
-                });
                 state.tempCtx.restore();
-
-                state.tempRect = { x: rectX, y: rectY, width: rectWidth, height: rectHeight };
                 return;
             }
 
-            // 2. 光标更新逻辑（按层级判定）
-            if (!state.isDrawing && !state.dragStartPos) {
-                let targetControl: ControlPoint = 'none';
+            // 处理矩形拖拽
+            if (state.tempSelectedRect && state.dragStartPos && state.activeControl !== 'none') {
+                const dx = x - state.dragStartPos.x;
+                const dy = y - state.dragStartPos.y;
+                const tempRect = { ...state.tempSelectedRect };
 
-                // 优先检查激活的临时矩形
-                if (state.tempSelectedRect) {
-                    const clonedTempRect = cloneRect(state.tempSelectedRect);
-                    targetControl = getControlPoint(currX, currY, clonedTempRect);
-                }
-
-                // 无激活矩形：从最新drawedShapes中按层级判定
-                if (targetControl === 'none') {
-                    const { control } = findClickedRectInLatestShapes(state, currX, currY);
-                    targetControl = control;
-                }
-
-                updateCanvasCursor(state, targetControl);
-                return;
-            }
-
-            // 3. 拖拽/缩放逻辑（核心：更新临时矩形的updateTime）
-            if (state.tempSelectedRect && state.activeControl !== 'none' && state.dragStartPos) {
-                const tempRect = cloneRect(state.tempSelectedRect);
-                const dx = currX - state.dragStartPos.x;
-                const dy = currY - state.dragStartPos.y;
-
-                state.tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-
-                // 计算新位置
-                let newX = tempRect.x;
-                let newY = tempRect.y;
-                let newWidth = tempRect.width;
-                let newHeight = tempRect.height;
-
+                // 根据控制点类型处理拖拽
                 switch (state.activeControl) {
                     case 'move':
-                        newX += dx;
-                        newY += dy;
+                        tempRect.x += dx;
+                        tempRect.y += dy;
                         break;
                     case 'topLeft':
-                        newX += dx;
-                        newY += dy;
-                        newWidth = Math.max(MIN_RECT_SIZE, tempRect.width - dx);
-                        newHeight = Math.max(MIN_RECT_SIZE, tempRect.height - dy);
+                        tempRect.x += dx;
+                        tempRect.y += dy;
+                        tempRect.width -= dx;
+                        tempRect.height -= dy;
                         break;
                     case 'topRight':
-                        newY += dy;
-                        newWidth = Math.max(MIN_RECT_SIZE, tempRect.width + dx);
-                        newHeight = Math.max(MIN_RECT_SIZE, tempRect.height - dy);
+                        tempRect.y += dy;
+                        tempRect.width += dx;
+                        tempRect.height -= dy;
                         break;
                     case 'bottomLeft':
-                        newX += dx;
-                        newWidth = Math.max(MIN_RECT_SIZE, tempRect.width - dx);
-                        newHeight = Math.max(MIN_RECT_SIZE, tempRect.height + dy);
+                        tempRect.x += dx;
+                        tempRect.width -= dx;
+                        tempRect.height += dy;
                         break;
                     case 'bottomRight':
-                        newWidth = Math.max(MIN_RECT_SIZE, tempRect.width + dx);
-                        newHeight = Math.max(MIN_RECT_SIZE, tempRect.height + dy);
+                        tempRect.width += dx;
+                        tempRect.height += dy;
                         break;
                 }
 
-                // 关键：更新时间戳为当前时间（标记为最新更新）
-                const updatedTempRect = cloneRect({
-                    ...tempRect,
-                    x: newX,
-                    y: newY,
-                    width: newWidth,
-                    height: newHeight,
-                    updateTime: Date.now() // 移动/缩放时更新时间戳
-                });
-                state.tempSelectedRect = updatedTempRect;
+                // 确保矩形尺寸不为负
+                if (tempRect.width < MIN_RECT_SIZE) {
+                    tempRect.width = MIN_RECT_SIZE;
+                }
+                if (tempRect.height < MIN_RECT_SIZE) {
+                    tempRect.height = MIN_RECT_SIZE;
+                }
 
-                // 绘制临时矩形
+                // 更新临时矩形
+                tempRect.updateTime = Date.now();
+                state.tempSelectedRect = tempRect;
+                state.dragStartPos = { x, y };
+
+                // 在临时画布上绘制
+                state.tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
                 state.tempCtx.save();
-                state.tempCtx.strokeStyle = updatedTempRect.strokeStyle;
-                state.tempCtx.fillStyle = updatedTempRect.fillStyle;
-                state.tempCtx.lineWidth = updatedTempRect.lineWidth;
+                state.tempCtx.strokeStyle = tempRect.strokeStyle;
+                state.tempCtx.fillStyle = tempRect.fillStyle;
+                state.tempCtx.lineWidth = tempRect.lineWidth;
                 state.tempCtx.beginPath();
-                state.tempCtx.rect(newX, newY, newWidth, newHeight);
+                state.tempCtx.rect(tempRect.x, tempRect.y, tempRect.width, tempRect.height);
                 state.tempCtx.fill();
                 state.tempCtx.stroke();
-                drawControlPoints(state.tempCtx, updatedTempRect);
                 state.tempCtx.restore();
 
-                // 更新拖拽起始位置
-                state.dragStartPos = { x: currX, y: currY };
+                // 绘制控制点
+                drawControlPoints(state.tempCtx, tempRect);
+                return;
             }
+
+            // 更新光标（非绘制/拖拽状态）
+            let targetControl: ControlPoint = 'none';
+            if (!state.isDrawing && !state.tempSelectedRect) {
+                // 检查是否悬停在矩形上
+                const rects = [...state.drawedShapes].reverse();
+                for (const rect of rects) {
+                    targetControl = getControlPoint(x, y, rect);
+                    if (targetControl !== 'none') break;
+                }
+            }
+            updateCanvasCursor(state, targetControl);
         };
-        document.addEventListener('mousemove', handleMousemove, { passive: true });
+        document.addEventListener('mousemove', handleMousemove);
         cleanupEvents.push(() => document.removeEventListener('mousemove', handleMousemove));
 
-        // 鼠标松开事件（移动/缩放后自动归位，保留层级）
-        const handleMouseEnd = () => {
-            // 1. 强制重置拖拽状态
-            const wasDragging = state.activeControl !== 'none' && state.dragStartPos;
-            state.activeControl = 'none';
-            state.dragStartPos = undefined;
-
-            // 2. 处理绘制新矩形逻辑（创建时初始化时间戳）
+        // 鼠标松开事件
+        const handleMouseup = () => {
             if (state.isDrawing && state.tempRect) {
-                const { tempRect } = state;
-                const isRectValid = tempRect.width >= MIN_RECT_SIZE && tempRect.height >= MIN_RECT_SIZE &&
-                    !(tempRect.x + tempRect.width < 0 || tempRect.x > mainCanvas.width ||
-                        tempRect.y + tempRect.height < 0 || tempRect.y > mainCanvas.height);
+                // 完成矩形绘制
+                let { x, y, width, height } = state.tempRect;
 
-                if (isRectValid) {
-                    const newRect: RectShape = {
-                        id: generateId(),
-                        type: 'rect',
-                        x: tempRect.x,
-                        y: tempRect.y,
-                        width: tempRect.width,
-                        height: tempRect.height,
-                        strokeStyle: currentStyle.strokeStyle,
-                        fillStyle: currentStyle.rectFillStyle!,
-                        lineWidth: currentStyle.lineWidth,
-                        isSelected: false,
-                        updateTime: Date.now() // 新建矩形时初始化时间戳
-                    };
+                // 修复矩形偏移问题：正确处理正负尺寸
+                const actualX = width < 0 ? x + width : x;
+                const actualY = height < 0 ? y + height : y;
+                const actualWidth = Math.abs(width);
+                const actualHeight = Math.abs(height);
+
+                const newRect: RectShape = {
+                    id: generateId(),
+                    type: 'rect',
+                    x: actualX,
+                    y: actualY,
+                    width: actualWidth,
+                    height: actualHeight,
+                    strokeStyle: state.currentStyle.strokeStyle,
+                    fillStyle: state.currentStyle.rectFillStyle,
+                    lineWidth: state.currentStyle.lineWidth,
+                    updateTime: Date.now(),
+                    timestamp: Date.now(),
+                    canvasId: state.canvasId
+                };
+
+                // 确保矩形尺寸有效
+                if (actualWidth > MIN_RECT_SIZE && actualHeight > MIN_RECT_SIZE) {
                     state.drawedShapes.push(newRect);
-                    state.drawedShapes = [...state.drawedShapes]; // 刷新数组引用
+                    // 重绘所有图形
                     restoreOriginalBgAndRedrawAll(state);
                 }
 
+                // 清空临时数据
                 state.tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
                 state.isDrawing = false;
                 state.tempRect = undefined;
-
-                if (!state.tempSelectedRect) {
-                    state.mainCanvas.style.cursor = 'default';
-                    state.tempCanvas.style.cursor = 'default';
-                    state.currentCursor = 'default';
+            } else if (state.tempSelectedRect && state.selectedRectId) {
+                // 保存拖拽后的矩形
+                const index = state.drawedShapes.findIndex(rect => rect.id === state.selectedRectId);
+                if (index !== -1) {
+                    state.drawedShapes[index] = {
+                        ...state.tempSelectedRect,
+                        updateTime: Date.now()
+                    };
+                    // 重绘所有图形
+                    restoreOriginalBgAndRedrawAll(state);
                 }
-            }
 
-            // 移动/缩放结束后自动归位，保留层级（时间戳已更新）
-            if (wasDragging && state.tempSelectedRect) {
-                restoreTempSelectedRectToMain(state);
+                // 清空临时数据
+                state.tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+                state.selectedRectId = undefined;
+                state.tempSelectedRect = undefined;
+                state.activeControl = 'none';
+                state.dragStartPos = undefined;
             }
         };
-        document.addEventListener('mouseup', handleMouseEnd);
-        document.addEventListener('mouseleave', handleMouseEnd);
+        document.addEventListener('mouseup', handleMouseup);
+        document.addEventListener('mouseleave', handleMouseup);
         cleanupEvents.push(() => {
-            document.removeEventListener('mouseup', handleMouseEnd);
-            document.removeEventListener('mouseleave', handleMouseEnd);
-        });
-
-        // 鼠标离开Canvas事件
-        const handleMouseOut = () => {
-            if (state.currentCursor !== 'default' && !state.dragStartPos) {
-                state.mainCanvas.style.cursor = 'default';
-                state.tempCanvas.style.cursor = 'default';
-                state.currentCursor = 'default';
-            }
-        };
-        mainCanvas.addEventListener('mouseout', handleMouseOut);
-        tempCanvas.addEventListener('mouseout', handleMouseOut);
-        cleanupEvents.push(() => {
-            mainCanvas.removeEventListener('mouseout', handleMouseOut);
-            tempCanvas.removeEventListener('mouseout', handleMouseOut);
+            document.removeEventListener('mouseup', handleMouseup);
+            document.removeEventListener('mouseleave', handleMouseup);
         });
     };
 
-    // 重绘所有矩形（基于最新drawedShapes）
-    const redrawAllAnnotations = (canvasId: string) => {
+    // 重绘所有矩形
+    const redrawAllAnnotations = (canvasId: string, mainCtx: CanvasRenderingContext2D) => {
         const state = canvasStates[canvasId];
         if (!state) return;
-        restoreOriginalBgAndRedrawAll(state);
+
+        // 先清除再重绘
+        mainCtx.clearRect(0, 0, state.mainCanvas.width, state.mainCanvas.height);
+        if (state.originalCanvasBg) {
+            mainCtx.putImageData(state.originalCanvasBg, 0, 0);
+        }
+
+        // 绘制所有矩形
+        mainCtx.save();
+        state.drawedShapes.forEach((rect: RectShape) => {
+            mainCtx.strokeStyle = rect.strokeStyle;
+            mainCtx.fillStyle = rect.fillStyle;
+            mainCtx.lineWidth = rect.lineWidth;
+            mainCtx.beginPath();
+            mainCtx.rect(rect.x, rect.y, rect.width, rect.height);
+            mainCtx.fill();
+            mainCtx.stroke();
+        });
+        mainCtx.restore();
     };
 
-    // 清空所有批注（彻底重置）
+    // 清空矩形批注
     const clearAnnotations = (
         canvasId: string,
-        redrawOriginalContent?: () => void
+        mainCanvas: HTMLCanvasElement,
+        redrawOriginalContent: () => void
     ) => {
         const state = canvasStates[canvasId];
         if (!state) return;
-
-        restoreTempSelectedRectToMain(state);
-        state.drawedShapes = [];
-        state.tempCtx.clearRect(0, 0, state.tempCanvas.width, state.tempCanvas.height);
-        state.tempSelectedRect = undefined;
-        state.selectedRectId = undefined;
-        state.activeControl = 'none';
-        state.dragStartPos = undefined;
-        state.currentCursor = 'default';
-        state.mainCanvas.style.cursor = 'default';
-        state.tempCanvas.style.cursor = 'default';
-
-        if (state.originalCanvasBg) {
-            state.mainCtx.putImageData(state.originalCanvasBg, 0, 0);
-        }
-
-        if (redrawOriginalContent) redrawOriginalContent();
+        clearCommonAnnotations(state, mainCanvas, redrawOriginalContent);
     };
 
-    // 销毁功能（彻底清理所有资源）
-    const destroy = (canvasId: string) => {
+    // 销毁矩形功能（保留图形数据）
+    const destroy = (canvasId: string, keepShapes: boolean = true) => {
         const state = canvasStates[canvasId];
         if (state) {
-            restoreTempSelectedRectToMain(state);
-            state.tempCtx.clearRect(0, 0, state.tempCanvas.width, state.tempCanvas.height);
-            state.mainCtx.clearRect(0, 0, state.mainCanvas.width, state.mainCanvas.height);
-            state.cleanupEvents.forEach(cleanup => cleanup());
-            state.mainCanvas.style.cursor = 'default';
-            state.tempCanvas.style.cursor = 'default';
-            delete canvasStates[canvasId];
+            // 保存图形数据
+            const shapes = state.drawedShapes;
+            const bg = state.originalCanvasBg;
+
+            // 销毁资源
+            destroyCommon(canvasId, state);
+
+            // 如果需要保留数据，不删除状态而是重置它
+            if (keepShapes) {
+                canvasStates[canvasId] = {
+                    ...state,
+                    tempCanvas: null as unknown as HTMLCanvasElement,
+                    tempCtx: null as unknown as CanvasRenderingContext2D,
+                    cleanupEvents: [],
+                    isDrawing: false,
+                    drawedShapes: shapes,
+                    originalCanvasBg: bg,
+                    tempRect: undefined,
+                    selectedRectId: undefined,
+                    activeControl: 'none',
+                    dragStartPos: undefined,
+                    tempSelectedRect: undefined
+                };
+            } else {
+                delete canvasStates[canvasId];
+            }
+        }
+    };
+
+    // 获取矩形数据
+    const getShapes = (canvasId?: string): RectShape[] => {
+        if (canvasId) {
+            const state = canvasStates[canvasId];
+            return state ? [...state.drawedShapes] : [];
+        }
+
+        // 返回所有画布的矩形
+        return Object.values(canvasStates)
+            .flatMap(state => state.drawedShapes);
+    };
+
+    // 加载矩形数据
+    const loadShapes = (shapes: RectShape[], canvasId: string) => {
+        const state = canvasStates[canvasId];
+        if (!state) return;
+
+        // 过滤出属于当前画布的矩形
+        const canvasShapes = shapes.filter(shape => shape.canvasId === canvasId);
+
+        // 按时间戳排序
+        canvasShapes.sort((a, b) => a.timestamp - b.timestamp);
+
+        // 加载矩形
+        state.drawedShapes = [...canvasShapes];
+
+        // 重绘
+        if (state.mainCanvas && state.mainCtx) {
+            redrawAllAnnotations(canvasId, state.mainCtx);
         }
     };
 
@@ -646,5 +656,7 @@ export const useDrawRect = () => {
         redrawAllAnnotations,
         clearAnnotations,
         destroy,
+        getShapes,
+        loadShapes
     };
 };

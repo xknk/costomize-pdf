@@ -1,29 +1,29 @@
-/* 公共Canvas工具：处理临时Canvas、坐标计算、样式初始化等 */
+// hooks/useOption/common/common.ts
+/* 修正坐标计算，解决矩形偏移问题 */
 export interface eTs {
     clientX: number;
     clientY: number;
     target: HTMLCanvasElement;
 }
 
-// 公共状态类型（不含绘制特定字段）
+// 公共状态类型
 export interface CanvasBaseState {
     isDrawing: boolean;
     startX: number;
     startY: number;
-    drawedShapes: any[]; // 兼容线/矩形的通用数组
+    drawedShapes: any[];
     currentStyle: {
         strokeStyle: string;
         lineWidth: number;
-        rectFillStyle?: string; // 矩形专属，可选
+        rectFillStyle?: string;
     };
     tempCanvas?: HTMLCanvasElement | null;
     tempCtx?: CanvasRenderingContext2D | null;
     mainCanvas: HTMLCanvasElement;
-    // 事件清理函数（用于销毁时移除全局事件）
     cleanupEvents: (() => void)[];
 }
 
-// 1. 创建临时Canvas（公共逻辑）
+// 创建临时Canvas
 export const createTempCanvas = (
     mainCanvas: HTMLCanvasElement,
     mainParent: HTMLElement,
@@ -73,19 +73,18 @@ export const createTempCanvas = (
     return tempCanvas;
 };
 
-// 2. 计算元素相对于父容器的位置（精准版）
+// 计算元素相对于父容器的位置（修正版）
 export const getElementRectRelativeToParent = (element: HTMLElement, parent: HTMLElement) => {
-    let top = 0, left = 0;
-    let el: HTMLElement | null = element;
-    while (el && el !== parent) {
-        top += el.offsetTop;
-        left += el.offsetLeft;
-        el = el.offsetParent as HTMLElement | null;
-    }
-    return { top, left };
+    const elementRect = element.getBoundingClientRect();
+    const parentRect = parent.getBoundingClientRect();
+
+    return {
+        top: elementRect.top - parentRect.top,
+        left: elementRect.left - parentRect.left
+    };
 };
 
-// 3. 初始化Canvas上下文样式
+// 初始化Canvas上下文样式
 export const initCtxStyles = (
     ctx: CanvasRenderingContext2D,
     style: CanvasBaseState['currentStyle']
@@ -98,18 +97,20 @@ export const initCtxStyles = (
     ctx.globalCompositeOperation = 'source-over';
 };
 
-// 4. 获取Canvas内坐标（超边界仍返回有效坐标）
+// 获取Canvas内坐标（修正版，解决偏移问题）
 export const getCanvasPos = (e: eTs, canvas: HTMLCanvasElement) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
+
+    // 计算相对于canvas的坐标，考虑所有父级偏移
     return {
         x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY,
+        y: (e.clientY - rect.top) * scaleY
     };
 };
 
-// 5. 公共清空逻辑（清空Canvas+恢复原有内容）
+// 公共清空逻辑
 export const clearCommonAnnotations = (
     state: CanvasBaseState,
     mainCanvas: HTMLCanvasElement,
@@ -124,7 +125,7 @@ export const clearCommonAnnotations = (
     state.tempCtx?.clearRect(0, 0, state.tempCanvas!.width, state.tempCanvas!.height);
 };
 
-// 6. 公共销毁逻辑（清理临时Canvas+全局事件）
+// 公共销毁逻辑
 export const destroyCommon = (canvasId: string, state: CanvasBaseState) => {
     // 移除全局事件
     state.cleanupEvents.forEach(cleanup => cleanup());
@@ -134,3 +135,4 @@ export const destroyCommon = (canvasId: string, state: CanvasBaseState) => {
         state.tempCanvas.parentElement?.removeChild(state.tempCanvas);
     }
 };
+export const generateId = () => Math.random().toString(36).substr(2, 9);
