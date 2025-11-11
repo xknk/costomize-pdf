@@ -1,25 +1,34 @@
 // hooks/useOption/common/common.ts
-/* 修正坐标计算，解决矩形偏移问题 */
+/* 修正坐标计算，解决偏移问题 */
 export interface eTs {
     clientX: number;
     clientY: number;
     target: HTMLCanvasElement;
 }
 
+// 扩展样式接口，包含控制点样式
+export interface CanvasBaseStyle {
+    strokeStyle: string;
+    lineWidth: number;
+    rectFillStyle?: string;
+    circleFillStyle?: string;
+    controlFillStyle: string;    // 新增：控制点填充色
+    controlStrokeStyle: string;  // 新增：控制点边框色
+    controlSize: number;         // 新增：控制点大小
+}
+
 // 公共状态类型
 export interface CanvasBaseState {
+    canvasId: string;
     isDrawing: boolean;
     startX: number;
     startY: number;
     drawedShapes: any[];
-    currentStyle: {
-        strokeStyle: string;
-        lineWidth: number;
-        rectFillStyle?: string;
-    };
+    currentStyle: CanvasBaseStyle; // 使用扩展样式接口
     tempCanvas?: HTMLCanvasElement | null;
     tempCtx?: CanvasRenderingContext2D | null;
     mainCanvas: HTMLCanvasElement;
+    mainCtx: CanvasRenderingContext2D;
     cleanupEvents: (() => void)[];
 }
 
@@ -73,7 +82,7 @@ export const createTempCanvas = (
     return tempCanvas;
 };
 
-// 计算元素相对于父容器的位置（修正版）
+// 计算元素相对于父容器的位置
 export const getElementRectRelativeToParent = (element: HTMLElement, parent: HTMLElement) => {
     const elementRect = element.getBoundingClientRect();
     const parentRect = parent.getBoundingClientRect();
@@ -87,23 +96,23 @@ export const getElementRectRelativeToParent = (element: HTMLElement, parent: HTM
 // 初始化Canvas上下文样式
 export const initCtxStyles = (
     ctx: CanvasRenderingContext2D,
-    style: CanvasBaseState['currentStyle']
+    style: CanvasBaseStyle
 ) => {
     ctx.strokeStyle = style.strokeStyle;
     ctx.lineWidth = style.lineWidth;
     if (style.rectFillStyle) ctx.fillStyle = style.rectFillStyle;
+    if (style.circleFillStyle) ctx.fillStyle = style.circleFillStyle;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.globalCompositeOperation = 'source-over';
 };
 
-// 获取Canvas内坐标（修正版，解决偏移问题）
+// 获取Canvas内坐标
 export const getCanvasPos = (e: eTs, canvas: HTMLCanvasElement) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
-    // 计算相对于canvas的坐标，考虑所有父级偏移
     return {
         x: (e.clientX - rect.left) * scaleX,
         y: (e.clientY - rect.top) * scaleY
@@ -127,12 +136,11 @@ export const clearCommonAnnotations = (
 
 // 公共销毁逻辑
 export const destroyCommon = (canvasId: string, state: CanvasBaseState) => {
-    // 移除全局事件
     state.cleanupEvents.forEach(cleanup => cleanup());
-    // 移除临时Canvas
     if (state.tempCanvas) {
         state.tempCanvas.dispatchEvent(new Event('destroy'));
         state.tempCanvas.parentElement?.removeChild(state.tempCanvas);
     }
 };
+
 export const generateId = () => Math.random().toString(36).substr(2, 9);

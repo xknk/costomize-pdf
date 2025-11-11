@@ -1,9 +1,16 @@
 // hooks/useOption/useDrawLine.ts
-/* 自由画笔功能：记录鼠标移动的所有点 */
-import { createTempCanvas, getElementRectRelativeToParent, initCtxStyles, getCanvasPos, clearCommonAnnotations, destroyCommon } from './common/common';
-import { generateId } from './common/common'; // 假设存在此工具函数
+import {
+    createTempCanvas,
+    getCanvasPos,
+    initCtxStyles,
+    clearCommonAnnotations,
+    destroyCommon,
+    generateId,
+    CanvasBaseState,
+    CanvasBaseStyle
+} from './common/common';
 
-// 定义线条形状接口（包含所有点）
+// 定义线条形状接口
 export interface LineShape {
     id: string;
     type: 'line';
@@ -15,29 +22,51 @@ export interface LineShape {
 }
 
 // 存储所有画布状态
-const canvasStates: Record<string, any> = {};
+const canvasStates: Record<string, CanvasBaseState & {
+    currentLinePoints: { x: number; y: number }[];
+    originalCanvasBg?: ImageData;
+}> = {};
 
-export const useDrawRect = () => {
-    // 其他代码保持不变...
+// 重绘所有线条
+const redrawAllAnnotations = (canvasId: string, mainCtx: CanvasRenderingContext2D) => {
+    const state = canvasStates[canvasId];
+    if (!state) return;
+
+    mainCtx.save();
+    state.drawedShapes.forEach((shape: LineShape) => {
+        if (shape.points.length < 2) return;
+
+        mainCtx.strokeStyle = shape.strokeStyle;
+        mainCtx.lineWidth = shape.lineWidth;
+        mainCtx.beginPath();
+        mainCtx.moveTo(shape.points[0].x, shape.points[0].y);
+
+        for (let i = 1; i < shape.points.length; i++) {
+            mainCtx.lineTo(shape.points[i].x, shape.points[i].y);
+        }
+
+        mainCtx.stroke();
+    });
+    mainCtx.restore();
 };
 
 export const useDrawLine = () => {
-    // 1. 初始化自由画笔（记录所有点）
+    // 初始化自由画笔
     const initDrawingByMouseMove = (
         canvasId: string,
         mainCanvas: HTMLCanvasElement,
         mainCtx: CanvasRenderingContext2D,
-        customStyle: {
-            strokeStyle?: string;
-            lineWidth?: number;
-        } = {}
+        customStyle: Partial<CanvasBaseStyle> = {}
     ) => {
-        // 画线默认样式
-        const defaultStyle = {
-            strokeStyle: '#0066ff', // 蓝色线条
+        // 线条默认样式
+        const defaultStyle: CanvasBaseStyle = {
+            strokeStyle: '#0066ff',
             lineWidth: 2,
+            controlFillStyle: '#ffffff',    // 控制点样式（备用）
+            controlStrokeStyle: '#000000',  // 控制点样式（备用）
+            controlSize: 6                  // 控制点大小（备用）
         };
-        const currentStyle = { ...defaultStyle, ...customStyle };
+        const currentStyle: CanvasBaseStyle = { ...defaultStyle, ...customStyle };
 
         // 父容器定位处理
         const mainCanvasParent = mainCanvas.parentElement;
@@ -56,27 +85,31 @@ export const useDrawLine = () => {
         const tempCtx = tempCanvas.getContext('2d');
         if (!tempCtx) throw new Error('浏览器不支持Canvas');
 
+        // 保存原始背景
+        const originalCanvasBg = existingBg || mainCtx.getImageData(0, 0, mainCanvas.width, mainCanvas.height);
+
         // 初始化画笔专属状态
         const cleanupEvents: (() => void)[] = [];
-
         canvasStates[canvasId] = {
             canvasId,
             isDrawing: false,
-            drawedShapes: existingShapes, // 保留已有图形
-            currentStyle,
+            startX: 0,
+            startY: 0,
+            drawedShapes: existingShapes,
+            currentLinePoints: [],
             tempCanvas,
             tempCtx,
             mainCanvas,
             mainCtx,
-            cleanupEvents,
-            originalCanvasBg: existingBg || mainCtx.getImageData(0, 0, mainCanvas.width, mainCanvas.height),
-            currentLinePoints: [] // 存储当前正在绘制的线的所有点
+            originalCanvasBg,
+            currentStyle,
+            cleanupEvents
         };
         const state = canvasStates[canvasId];
 
         // 初始化样式
-        initCtxStyles(mainCtx, currentStyle);
-        initCtxStyles(tempCtx, currentStyle);
+        initCtxStyles(mainCtx, state.currentStyle);
+        initCtxStyles(tempCtx, state.currentStyle);
 
         // 重绘已有图形
         redrawAllAnnotations(canvasId, mainCtx);
@@ -87,7 +120,6 @@ export const useDrawLine = () => {
             const { x, y } = getCanvasPos(evt, mainCanvas);
 
             state.isDrawing = true;
-            // 重置当前线条的点数组
             state.currentLinePoints = [{ x, y }];
         };
         mainCanvas.addEventListener('mousedown', handleMousedown, { passive: true });
@@ -104,22 +136,41 @@ export const useDrawLine = () => {
             state.currentLinePoints.push({ x, y });
 
             // 在临时画布上绘制当前线
-            state.tempCtx.clearRect(0, 0, state.tempCanvas.width, state.tempCanvas.height);
-            state.tempCtx.save();
-            state.tempCtx.strokeStyle = state.currentStyle.strokeStyle;
-            state.tempCtx.lineWidth = state.currentStyle.lineWidth;
-            state.tempCtx.beginPath();
+            state.tempCtx!.clearRect(0, 0, state.tempCanvas!.width, state.tempCanvas!.height);
+
+            // 计算绘制区域范围，复制背景
+            if (state.currentLinePoints.length > 1) {
+                const padding = 20;
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                state.currentLinePoints.forEach(p => {
+                    minX = Math.min(minX, p.x);
+                    minY = Math.min(minY, p.y);
+                    maxX = Math.max(maxX, p.x);
+                    maxY = Math.max(maxY, p.y);
+                });
+                const bgX = Math.max(0, minX - padding);
+                const bgY = Math.max(0, minY - padding);
+                const bgW = Math.min(state.mainCanvas.width - bgX, maxX - minX + padding * 2);
+                const bgH = Math.min(state.mainCanvas.height - bgY, maxY - minY + padding * 2);
+                const bgImageData = state.mainCtx.getImageData(bgX, bgY, bgW, bgH);
+                state.tempCtx!.putImageData(bgImageData, bgX, bgY);
+            }
+
+            state.tempCtx!.save();
+            state.tempCtx!.strokeStyle = state.currentStyle.strokeStyle;
+            state.tempCtx!.lineWidth = state.currentStyle.lineWidth;
+            state.tempCtx!.beginPath();
 
             // 绘制所有点连成的线
             if (state.currentLinePoints.length > 1) {
-                state.tempCtx.moveTo(state.currentLinePoints[0].x, state.currentLinePoints[0].y);
+                state.tempCtx!.moveTo(state.currentLinePoints[0].x, state.currentLinePoints[0].y);
                 for (let i = 1; i < state.currentLinePoints.length; i++) {
-                    state.tempCtx.lineTo(state.currentLinePoints[i].x, state.currentLinePoints[i].y);
+                    state.tempCtx!.lineTo(state.currentLinePoints[i].x, state.currentLinePoints[i].y);
                 }
             }
 
-            state.tempCtx.stroke();
-            state.tempCtx.restore();
+            state.tempCtx!.stroke();
+            state.tempCtx!.restore();
         };
         document.addEventListener('mousemove', handleMousemove, { passive: true });
         cleanupEvents.push(() => document.removeEventListener('mousemove', handleMousemove));
@@ -136,11 +187,11 @@ export const useDrawLine = () => {
                 }
 
                 // 只保存有效长度的线
-                if (totalLength > 5) { // 最小长度阈值
+                if (totalLength > 5) {
                     state.drawedShapes.push({
                         id: generateId(),
                         type: 'line',
-                        points: [...state.currentLinePoints], // 保存所有点
+                        points: [...state.currentLinePoints],
                         strokeStyle: state.currentStyle.strokeStyle,
                         lineWidth: state.currentStyle.lineWidth,
                         timestamp: Date.now(),
@@ -155,7 +206,7 @@ export const useDrawLine = () => {
             }
 
             // 清空临时数据
-            state.tempCtx.clearRect(0, 0, state.tempCanvas.width, state.tempCanvas.height);
+            state.tempCtx!.clearRect(0, 0, state.tempCanvas!.width, state.tempCanvas!.height);
             state.currentLinePoints = [];
             state.isDrawing = false;
         };
@@ -168,30 +219,7 @@ export const useDrawLine = () => {
         });
     };
 
-    // 2. 重绘所有线条
-    const redrawAllAnnotations = (canvasId: string, mainCtx: CanvasRenderingContext2D) => {
-        const state = canvasStates[canvasId];
-        if (!state) return;
-
-        mainCtx.save();
-        state.drawedShapes.forEach((shape: LineShape) => {
-            if (shape.points.length < 2) return;
-
-            mainCtx.strokeStyle = shape.strokeStyle;
-            mainCtx.lineWidth = shape.lineWidth;
-            mainCtx.beginPath();
-            mainCtx.moveTo(shape.points[0].x, shape.points[0].y);
-
-            for (let i = 1; i < shape.points.length; i++) {
-                mainCtx.lineTo(shape.points[i].x, shape.points[i].y);
-            }
-
-            mainCtx.stroke();
-        });
-        mainCtx.restore();
-    };
-
-    // 3. 清空线段批注
+    // 清空线段批注
     const clearAnnotations = (
         canvasId: string,
         mainCanvas: HTMLCanvasElement,
@@ -202,18 +230,15 @@ export const useDrawLine = () => {
         clearCommonAnnotations(state, mainCanvas, redrawOriginalContent);
     };
 
-    // 4. 销毁画线功能
+    // 销毁画线功能
     const destroy = (canvasId: string, keepShapes: boolean = true) => {
         const state = canvasStates[canvasId];
         if (state) {
-            // 保存图形数据
             const shapes = state.drawedShapes;
             const bg = state.originalCanvasBg;
 
-            // 销毁资源
             destroyCommon(canvasId, state);
 
-            // 如果需要保留数据
             if (keepShapes) {
                 canvasStates[canvasId] = {
                     ...state,
@@ -231,39 +256,15 @@ export const useDrawLine = () => {
         }
     };
 
-    // 5. 获取线段数据
+    // 获取线段数据
     const getShapes = (canvasId?: string): LineShape[] => {
         if (canvasId) {
             const state = canvasStates[canvasId];
             return state ? [...state.drawedShapes] : [];
         }
 
-        // 返回所有画布的线段
         return Object.values(canvasStates)
             .flatMap(state => state.drawedShapes);
-    };
-
-    // 6. 加载线段数据
-    const loadShapes = (shapes: LineShape[], canvasId: string) => {
-        const state = canvasStates[canvasId];
-        if (!state) return;
-
-        // 过滤出属于当前画布的线段
-        const canvasShapes = shapes.filter(shape => shape.canvasId === canvasId);
-
-        // 按时间戳排序
-        canvasShapes.sort((a, b) => a.timestamp - b.timestamp);
-
-        // 加载线段
-        state.drawedShapes = [...canvasShapes];
-
-        // 重绘
-        if (state.mainCanvas) {
-            const mainCtx = state.mainCanvas.getContext('2d');
-            if (mainCtx) {
-                redrawAllAnnotations(canvasId, mainCtx);
-            }
-        }
     };
 
     return {
@@ -271,7 +272,6 @@ export const useDrawLine = () => {
         redrawAllAnnotations,
         clearAnnotations,
         destroy,
-        getShapes,
-        loadShapes,
+        getShapes
     };
 };

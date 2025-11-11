@@ -15,7 +15,6 @@
                     @getPageNum="getPageNumFunc"
                     @mountPdf="initPdfFunc"
                     @getQueueStack="getQueueStackFunc"
-                    :drawConfig="optionObj"
                     :url="examplePdf"
                     :jsonData="storeAnnotationsJson"
                 />
@@ -64,13 +63,13 @@ type optionTs = {
     lineWidth?: number;
     imgUrl?: string;
 };
-const optionObj = ref<optionTs>({
-    type: "",
-    fontSize: 14,
-    fontColor: "#000000",
-    lineColor: "red",
-    lineWidth: 1,
-});
+// const optionObj = ref<optionTs>({
+//     type: "",
+//     fontSize: 14,
+//     fontColor: "#000000",
+//     lineColor: "red",
+//     lineWidth: 1,
+// });
 const getThumbnailFunc = ({
     thumbnail,
     thumbnailInfoArr,

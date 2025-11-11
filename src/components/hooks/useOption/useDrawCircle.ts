@@ -1,4 +1,4 @@
-// hooks/useOption/useDrawRect.ts
+// hooks/useOption/useDrawCircle.ts
 import {
     createTempCanvas,
     getCanvasPos,
@@ -7,18 +7,16 @@ import {
     destroyCommon,
     generateId,
     CanvasBaseState,
-    CanvasBaseStyle,
-    eTs
+    CanvasBaseStyle
 } from './common/common';
 
-// 定义矩形形状接口
-export interface RectShape {
+// 定义圆形形状接口
+export interface CircleShape {
     id: string;
-    type: 'rect';
-    x: number;
-    y: number;
-    width: number;
-    height: number;
+    type: 'circle';
+    x: number; // 圆心x坐标
+    y: number; // 圆心y坐标
+    radius: number; // 半径
     strokeStyle: string;
     fillStyle: string;
     lineWidth: number;
@@ -27,29 +25,29 @@ export interface RectShape {
 }
 
 // 控制点类型
-type ControlPoint = 'none' | 'move' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+type ControlPoint = 'none' | 'move' | 'top' | 'right' | 'bottom' | 'left';
 
-// 最小矩形尺寸
-const MIN_RECT_SIZE = 5;
+// 最小圆半径
+const MIN_CIRCLE_RADIUS = 5;
 
 // 存储所有画布状态
 const canvasStates: Record<string, CanvasBaseState & {
-    tempRect?: { x: number; y: number; width: number; height: number };
-    selectedRectId?: string;
+    tempCircle?: { x: number; y: number; radius: number };
+    selectedCircleId?: string;
     activeControl: ControlPoint;
     dragStartPos?: { x: number; y: number };
-    tempSelectedRect?: RectShape;
+    tempSelectedCircle?: CircleShape;
     originalCanvasBg?: ImageData;
     currentCursor: string;
 }> = {};
 
-// 克隆矩形
-const cloneRect = (rect: RectShape): RectShape => ({ ...rect });
+// 克隆圆形
+const cloneCircle = (circle: CircleShape): CircleShape => ({ ...circle });
 
 // 绘制控制点（使用配置样式）
 const drawControlPoints = (
     ctx: CanvasRenderingContext2D,
-    rect: RectShape,
+    circle: CircleShape,
     style: { controlSize: number; controlFillStyle: string; controlStrokeStyle: string }
 ) => {
     const { controlSize } = style;
@@ -58,44 +56,44 @@ const drawControlPoints = (
     ctx.strokeStyle = style.controlStrokeStyle;
     ctx.lineWidth = 1;
 
-    // 左上角
+    // 上控制点
     ctx.beginPath();
     ctx.rect(
-        rect.x - controlSize / 2,
-        rect.y - controlSize / 2,
+        circle.x - controlSize / 2,
+        circle.y - circle.radius - controlSize / 2,
         controlSize,
         controlSize
     );
     ctx.fill();
     ctx.stroke();
 
-    // 右上角
+    // 右控制点
     ctx.beginPath();
     ctx.rect(
-        rect.x + rect.width - controlSize / 2,
-        rect.y - controlSize / 2,
+        circle.x + circle.radius - controlSize / 2,
+        circle.y - controlSize / 2,
         controlSize,
         controlSize
     );
     ctx.fill();
     ctx.stroke();
 
-    // 左下角
+    // 下控制点
     ctx.beginPath();
     ctx.rect(
-        rect.x - controlSize / 2,
-        rect.y + rect.height - controlSize / 2,
+        circle.x - controlSize / 2,
+        circle.y + circle.radius - controlSize / 2,
         controlSize,
         controlSize
     );
     ctx.fill();
     ctx.stroke();
 
-    // 右下角
+    // 左控制点
     ctx.beginPath();
     ctx.rect(
-        rect.x + rect.width - controlSize / 2,
-        rect.y + rect.height - controlSize / 2,
+        circle.x - circle.radius - controlSize / 2,
+        circle.y - controlSize / 2,
         controlSize,
         controlSize
     );
@@ -106,36 +104,44 @@ const drawControlPoints = (
 };
 
 // 获取控制点
-const getControlPoint = (x: number, y: number, rect: RectShape): ControlPoint => {
+const getControlPoint = (x: number, y: number, circle: CircleShape): ControlPoint => {
     const controlSize = 10; // 检测范围
 
-    // 左上角
-    if (x > rect.x - controlSize && x < rect.x + controlSize &&
-        y > rect.y - controlSize && y < rect.y + controlSize) {
-        return 'topLeft';
+    // 上控制点检测
+    if (
+        Math.abs(x - circle.x) < controlSize &&
+        Math.abs(y - (circle.y - circle.radius)) < controlSize
+    ) {
+        return 'top';
     }
 
-    // 右上角
-    if (x > rect.x + rect.width - controlSize && x < rect.x + rect.width + controlSize &&
-        y > rect.y - controlSize && y < rect.y + controlSize) {
-        return 'topRight';
+    // 右控制点检测
+    if (
+        Math.abs(x - (circle.x + circle.radius)) < controlSize &&
+        Math.abs(y - circle.y) < controlSize
+    ) {
+        return 'right';
     }
 
-    // 左下角
-    if (x > rect.x - controlSize && x < rect.x + controlSize &&
-        y > rect.y + rect.height - controlSize && y < rect.y + rect.height + controlSize) {
-        return 'bottomLeft';
+    // 下控制点检测
+    if (
+        Math.abs(x - circle.x) < controlSize &&
+        Math.abs(y - (circle.y + circle.radius)) < controlSize
+    ) {
+        return 'bottom';
     }
 
-    // 右下角
-    if (x > rect.x + rect.width - controlSize && x < rect.x + rect.width + controlSize &&
-        y > rect.y + rect.height - controlSize && y < rect.y + rect.height + controlSize) {
-        return 'bottomRight';
+    // 左控制点检测
+    if (
+        Math.abs(x - (circle.x - circle.radius)) < controlSize &&
+        Math.abs(y - circle.y) < controlSize
+    ) {
+        return 'left';
     }
 
-    // 移动（内部）
-    if (x > rect.x && x < rect.x + rect.width &&
-        y > rect.y && y < rect.y + rect.height) {
+    // 移动控制点（圆心区域）
+    const centerDist = Math.hypot(x - circle.x, y - circle.y);
+    if (centerDist < circle.radius / 3) {
         return 'move';
     }
 
@@ -149,13 +155,13 @@ const updateCanvasCursor = (state: any, control: ControlPoint) => {
         case 'move':
             cursor = 'move';
             break;
-        case 'topLeft':
-        case 'bottomRight':
-            cursor = 'nwse-resize';
+        case 'top':
+        case 'bottom':
+            cursor = 'ns-resize';
             break;
-        case 'topRight':
-        case 'bottomLeft':
-            cursor = 'nesw-resize';
+        case 'left':
+        case 'right':
+            cursor = 'ew-resize';
             break;
         default:
             cursor = 'default';
@@ -167,50 +173,50 @@ const updateCanvasCursor = (state: any, control: ControlPoint) => {
 // 恢复原始背景并重绘其他图形
 const restoreOriginalBgAndRedrawOthers = (state: any, excludeId: string) => {
     state.mainCtx.putImageData(state.originalCanvasBg!, 0, 0);
-    state.drawedShapes.forEach((shape: RectShape) => {
+    state.drawedShapes.forEach((shape: CircleShape) => {
         if (shape.id !== excludeId) {
-            drawRect(state.mainCtx, shape);
+            drawCircle(state.mainCtx, shape);
         }
     });
 };
 
-// 绘制矩形
-const drawRect = (ctx: CanvasRenderingContext2D, rect: RectShape) => {
+// 绘制圆形
+const drawCircle = (ctx: CanvasRenderingContext2D, circle: CircleShape) => {
     ctx.save();
-    ctx.strokeStyle = rect.strokeStyle;
-    ctx.fillStyle = rect.fillStyle;
-    ctx.lineWidth = rect.lineWidth;
+    ctx.strokeStyle = circle.strokeStyle;
+    ctx.fillStyle = circle.fillStyle;
+    ctx.lineWidth = circle.lineWidth;
     ctx.beginPath();
-    ctx.rect(rect.x, rect.y, rect.width, rect.height);
+    ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
 };
 
-// 重绘所有矩形
+// 重绘所有圆形
 const redrawAllAnnotations = (canvasId: string, mainCtx: CanvasRenderingContext2D) => {
     const state = canvasStates[canvasId];
     if (!state) return;
 
     mainCtx.save();
-    state.drawedShapes.forEach((shape: RectShape) => {
-        drawRect(mainCtx, shape);
+    state.drawedShapes.forEach((shape: CircleShape) => {
+        drawCircle(mainCtx, shape);
     });
     mainCtx.restore();
 };
 
-export const useDrawRect = () => {
-    // 初始化画矩形
+export const useDrawCircle = () => {
+    // 初始化画圆功能
     const initDrawingByMouseMove = (
         canvasId: string,
         mainCanvas: HTMLCanvasElement,
         mainCtx: CanvasRenderingContext2D,
         customStyle: Partial<CanvasBaseStyle> = {}
     ) => {
-        // 矩形默认样式
+        // 圆形默认样式
         const defaultStyle: CanvasBaseStyle = {
             strokeStyle: '#ff0000',
-            rectFillStyle: 'rgba(255, 0, 0, 0.1)',
+            circleFillStyle: 'rgba(255, 0, 0, 0.1)',
             lineWidth: 2,
             controlFillStyle: '#ffffff',    // 控制点默认样式
             controlStrokeStyle: '#000000',  // 控制点默认样式
@@ -238,7 +244,7 @@ export const useDrawRect = () => {
         // 保存原始背景
         const originalCanvasBg = existingBg || mainCtx.getImageData(0, 0, mainCanvas.width, mainCanvas.height);
 
-        // 初始化矩形专属状态
+        // 初始化圆形专属状态
         const cleanupEvents: (() => void)[] = [];
         canvasStates[canvasId] = {
             canvasId,
@@ -246,11 +252,11 @@ export const useDrawRect = () => {
             startX: 0,
             startY: 0,
             drawedShapes: existingShapes,
-            tempRect: undefined,
-            selectedRectId: undefined,
+            tempCircle: undefined,
+            selectedCircleId: undefined,
             activeControl: 'none',
             dragStartPos: undefined,
-            tempSelectedRect: undefined,
+            tempSelectedCircle: undefined,
             tempCanvas,
             tempCtx,
             mainCanvas,
@@ -271,103 +277,92 @@ export const useDrawRect = () => {
 
         // 鼠标按下事件
         const handleMousedown = (e: MouseEvent) => {
-            const evt = e as unknown as eTs;
+            const evt = e as unknown as { clientX: number; clientY: number; target: HTMLCanvasElement };
             const { x, y } = getCanvasPos(evt, mainCanvas);
 
-            // 检查是否点击了现有矩形
-            const rects = [...state.drawedShapes].reverse();
-            let clickedRect: RectShape | undefined;
+            // 检查是否点击了现有圆形
+            const circles = [...state.drawedShapes].reverse();
+            let clickedCircle: CircleShape | undefined;
             let targetControl: ControlPoint = 'none';
 
-            for (const rect of rects) {
-                targetControl = getControlPoint(x, y, rect);
+            for (const circle of circles) {
+                targetControl = getControlPoint(x, y, circle);
                 if (targetControl !== 'none') {
-                    clickedRect = rect;
+                    clickedCircle = circle;
                     state.activeControl = targetControl;
                     break;
                 }
             }
 
-            if (clickedRect) {
+            if (clickedCircle) {
                 // 更新选中状态
-                state.selectedRectId = clickedRect.id;
-                state.tempSelectedRect = cloneRect(clickedRect);
+                state.selectedCircleId = clickedCircle.id;
+                state.tempSelectedCircle = cloneCircle(clickedCircle);
                 state.dragStartPos = { x, y };
 
-                // 主画布：重绘除选中矩形外的其他图形
-                restoreOriginalBgAndRedrawOthers(state, clickedRect.id);
+                // 主画布：重绘除选中圆形外的其他图形
+                restoreOriginalBgAndRedrawOthers(state, clickedCircle.id);
 
-                // 临时画布：先复制背景，再绘制选中矩形+控制点
+                // 临时画布：先复制背景，再绘制选中圆形+控制点
                 state.tempCtx!.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
 
                 // 复制背景区域到临时Canvas，确保半透明色视觉一致
                 const padding = 20;
-                const bgX = Math.max(0, clickedRect.x - padding);
-                const bgY = Math.max(0, clickedRect.y - padding);
-                const bgW = Math.min(state.mainCanvas.width - bgX, clickedRect.width + padding * 2);
-                const bgH = Math.min(state.mainCanvas.height - bgY, clickedRect.height + padding * 2);
+                const bgX = Math.max(0, clickedCircle.x - clickedCircle.radius - padding);
+                const bgY = Math.max(0, clickedCircle.y - clickedCircle.radius - padding);
+                const bgW = Math.min(state.mainCanvas.width - bgX, clickedCircle.radius * 2 + padding * 2);
+                const bgH = Math.min(state.mainCanvas.height - bgY, clickedCircle.radius * 2 + padding * 2);
                 const bgImageData = state.mainCtx.getImageData(bgX, bgY, bgW, bgH);
                 state.tempCtx!.putImageData(bgImageData, bgX, bgY);
 
-                state.tempCtx!.save();
-                state.tempCtx!.strokeStyle = clickedRect.strokeStyle;
-                state.tempCtx!.fillStyle = clickedRect.fillStyle;
-                state.tempCtx!.lineWidth = clickedRect.lineWidth;
-                state.tempCtx!.beginPath();
-                state.tempCtx!.rect(clickedRect.x, clickedRect.y, clickedRect.width, clickedRect.height);
-                state.tempCtx!.fill();
-                state.tempCtx!.stroke();
-                state.tempCtx!.restore();
-                drawControlPoints(state.tempCtx!, clickedRect, state.currentStyle);
+                drawCircle(state.tempCtx!, clickedCircle);
+                drawControlPoints(state.tempCtx!, clickedCircle, state.currentStyle);
 
                 // 同步更新光标
                 updateCanvasCursor(state, targetControl);
                 return;
             }
 
-            // 未点击现有矩形，开始绘制新矩形
+            // 未点击现有圆形，开始绘制新圆形
             state.isDrawing = true;
             state.startX = x;
             state.startY = y;
-            state.tempRect = { x, y, width: 0, height: 0 };
+            state.tempCircle = { x, y, radius: 0 };
         };
         mainCanvas.addEventListener('mousedown', handleMousedown);
         cleanupEvents.push(() => mainCanvas.removeEventListener('mousedown', handleMousedown));
 
         // 鼠标移动事件
         const handleMousemove = (e: MouseEvent) => {
-            const evt = e as unknown as eTs;
+            const evt = e as unknown as { clientX: number; clientY: number; target: HTMLCanvasElement };
             const { x, y } = getCanvasPos(evt, mainCanvas);
 
-            if (state.isDrawing && state.tempRect) {
-                // 绘制临时矩形
+            if (state.isDrawing && state.tempCircle) {
+                // 绘制临时圆形(圆心为起点,鼠标距离为半径)
                 state.tempCtx!.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-                state.tempRect.width = x - state.startX;
-                state.tempRect.height = y - state.startY;
+                const radius = Math.hypot(x - state.startX, y - state.startY);
+                state.tempCircle.radius = radius;
 
                 // 复制背景区域到临时Canvas，确保半透明色视觉一致
                 const padding = 20;
-                const rectX = Math.min(state.tempRect.x, state.tempRect.x + state.tempRect.width);
-                const rectY = Math.min(state.tempRect.y, state.tempRect.y + state.tempRect.height);
-                const rectW = Math.abs(state.tempRect.width);
-                const rectH = Math.abs(state.tempRect.height);
-                const bgX = Math.max(0, rectX - padding);
-                const bgY = Math.max(0, rectY - padding);
-                const bgW = Math.min(state.mainCanvas.width - bgX, rectW + padding * 2);
-                const bgH = Math.min(state.mainCanvas.height - bgY, rectH + padding * 2);
+                const bgX = Math.max(0, state.tempCircle.x - radius - padding);
+                const bgY = Math.max(0, state.tempCircle.y - radius - padding);
+                const bgW = Math.min(state.mainCanvas.width - bgX, radius * 2 + padding * 2);
+                const bgH = Math.min(state.mainCanvas.height - bgY, radius * 2 + padding * 2);
                 const bgImageData = state.mainCtx.getImageData(bgX, bgY, bgW, bgH);
                 state.tempCtx!.putImageData(bgImageData, bgX, bgY);
 
                 state.tempCtx!.save();
                 state.tempCtx!.strokeStyle = state.currentStyle.strokeStyle;
-                state.tempCtx!.fillStyle = state.currentStyle.rectFillStyle || 'transparent';
+                state.tempCtx!.fillStyle = state.currentStyle.circleFillStyle || 'transparent';
                 state.tempCtx!.lineWidth = state.currentStyle.lineWidth;
                 state.tempCtx!.beginPath();
-                state.tempCtx!.rect(
-                    state.tempRect.x,
-                    state.tempRect.y,
-                    state.tempRect.width,
-                    state.tempRect.height
+                state.tempCtx!.arc(
+                    state.tempCircle.x,
+                    state.tempCircle.y,
+                    state.tempCircle.radius,
+                    0,
+                    Math.PI * 2
                 );
                 state.tempCtx!.fill();
                 state.tempCtx!.stroke();
@@ -375,51 +370,37 @@ export const useDrawRect = () => {
                 return;
             }
 
-            // 处理矩形拖拽
-            if (state.tempSelectedRect && state.dragStartPos && state.activeControl !== 'none') {
+            // 处理圆形拖拽
+            if (state.tempSelectedCircle && state.dragStartPos && state.activeControl !== 'none') {
                 const dx = x - state.dragStartPos.x;
                 const dy = y - state.dragStartPos.y;
-                const tempRect = { ...state.tempSelectedRect };
+                const tempCircle = { ...state.tempSelectedCircle };
 
                 // 根据控制点类型处理拖拽
                 switch (state.activeControl) {
                     case 'move':
-                        tempRect.x += dx;
-                        tempRect.y += dy;
+                        tempCircle.x += dx;
+                        tempCircle.y += dy;
                         break;
-                    case 'topLeft':
-                        tempRect.x += dx;
-                        tempRect.y += dy;
-                        tempRect.width -= dx;
-                        tempRect.height -= dy;
+                    case 'top':
+                        tempCircle.y += dy;
+                        tempCircle.radius = Math.max(MIN_CIRCLE_RADIUS, tempCircle.radius - dy);
                         break;
-                    case 'topRight':
-                        tempRect.y += dy;
-                        tempRect.width += dx;
-                        tempRect.height -= dy;
+                    case 'bottom':
+                        tempCircle.radius = Math.max(MIN_CIRCLE_RADIUS, tempCircle.radius + dy);
                         break;
-                    case 'bottomLeft':
-                        tempRect.x += dx;
-                        tempRect.width -= dx;
-                        tempRect.height += dy;
+                    case 'left':
+                        tempCircle.x += dx;
+                        tempCircle.radius = Math.max(MIN_CIRCLE_RADIUS, tempCircle.radius - dx);
                         break;
-                    case 'bottomRight':
-                        tempRect.width += dx;
-                        tempRect.height += dy;
+                    case 'right':
+                        tempCircle.radius = Math.max(MIN_CIRCLE_RADIUS, tempCircle.radius + dx);
                         break;
                 }
 
-                // 确保矩形尺寸不为负
-                if (tempRect.width < MIN_RECT_SIZE) {
-                    tempRect.width = MIN_RECT_SIZE;
-                }
-                if (tempRect.height < MIN_RECT_SIZE) {
-                    tempRect.height = MIN_RECT_SIZE;
-                }
-
-                // 更新临时矩形
-                tempRect.timestamp = Date.now();
-                state.tempSelectedRect = tempRect;
+                // 更新临时圆形
+                tempCircle.timestamp = Date.now();
+                state.tempSelectedCircle = tempCircle;
                 state.dragStartPos = { x, y };
 
                 // 在临时画布上绘制
@@ -427,34 +408,24 @@ export const useDrawRect = () => {
 
                 // 复制背景区域到临时Canvas，确保半透明色视觉一致
                 const padding = 20;
-                const bgX = Math.max(0, tempRect.x - padding);
-                const bgY = Math.max(0, tempRect.y - padding);
-                const bgW = Math.min(state.mainCanvas.width - bgX, tempRect.width + padding * 2);
-                const bgH = Math.min(state.mainCanvas.height - bgY, tempRect.height + padding * 2);
+                const bgX = Math.max(0, tempCircle.x - tempCircle.radius - padding);
+                const bgY = Math.max(0, tempCircle.y - tempCircle.radius - padding);
+                const bgW = Math.min(state.mainCanvas.width - bgX, tempCircle.radius * 2 + padding * 2);
+                const bgH = Math.min(state.mainCanvas.height - bgY, tempCircle.radius * 2 + padding * 2);
                 const bgImageData = state.mainCtx.getImageData(bgX, bgY, bgW, bgH);
                 state.tempCtx!.putImageData(bgImageData, bgX, bgY);
 
-                state.tempCtx!.save();
-                state.tempCtx!.strokeStyle = tempRect.strokeStyle;
-                state.tempCtx!.fillStyle = tempRect.fillStyle;
-                state.tempCtx!.lineWidth = tempRect.lineWidth;
-                state.tempCtx!.beginPath();
-                state.tempCtx!.rect(tempRect.x, tempRect.y, tempRect.width, tempRect.height);
-                state.tempCtx!.fill();
-                state.tempCtx!.stroke();
-                state.tempCtx!.restore();
-
-                // 绘制控制点（使用配置样式）
-                drawControlPoints(state.tempCtx!, tempRect, state.currentStyle);
+                drawCircle(state.tempCtx!, tempCircle);
+                drawControlPoints(state.tempCtx!, tempCircle, state.currentStyle);
                 return;
             }
 
             // 更新光标（非绘制/拖拽状态）
             let targetControl: ControlPoint = 'none';
-            if (!state.isDrawing && !state.tempSelectedRect) {
-                const rects = [...state.drawedShapes].reverse();
-                for (const rect of rects) {
-                    targetControl = getControlPoint(x, y, rect);
+            if (!state.isDrawing && !state.tempSelectedCircle) {
+                const circles = [...state.drawedShapes].reverse();
+                for (const circle of circles) {
+                    targetControl = getControlPoint(x, y, circle);
                     if (targetControl !== 'none') break;
                 }
             }
@@ -465,59 +436,51 @@ export const useDrawRect = () => {
 
         // 鼠标松开事件
         const handleMouseup = () => {
-            if (state.isDrawing && state.tempRect) {
-                // 过滤过小的矩形
-                if (Math.abs(state.tempRect.width) > MIN_RECT_SIZE &&
-                    Math.abs(state.tempRect.height) > MIN_RECT_SIZE) {
-                    // 标准化矩形坐标（确保宽高为正）
-                    const x = state.tempRect.width > 0 ? state.tempRect.x : state.tempRect.x + state.tempRect.width;
-                    const y = state.tempRect.height > 0 ? state.tempRect.y : state.tempRect.y + state.tempRect.height;
-                    const width = Math.abs(state.tempRect.width);
-                    const height = Math.abs(state.tempRect.height);
-
-                    // 保存矩形
+            if (state.isDrawing && state.tempCircle) {
+                // 过滤过小的圆
+                if (state.tempCircle.radius > MIN_CIRCLE_RADIUS) {
+                    // 保存圆形
                     state.drawedShapes.push({
                         id: generateId(),
-                        type: 'rect',
-                        x,
-                        y,
-                        width,
-                        height,
+                        type: 'circle',
+                        x: state.tempCircle.x,
+                        y: state.tempCircle.y,
+                        radius: state.tempCircle.radius,
                         strokeStyle: state.currentStyle.strokeStyle,
-                        fillStyle: state.currentStyle.rectFillStyle || 'transparent',
+                        fillStyle: state.currentStyle.circleFillStyle || 'transparent',
                         lineWidth: state.currentStyle.lineWidth,
                         timestamp: Date.now(),
                         canvasId: state.canvasId
                     });
 
-                    // 重绘所有矩形
+                    // 重绘所有圆形
                     state.mainCtx.clearRect(0, 0, state.mainCanvas.width, state.mainCanvas.height);
                     state.mainCtx.putImageData(state.originalCanvasBg!, 0, 0);
                     redrawAllAnnotations(canvasId, state.mainCtx);
                 }
-                state.tempRect = undefined;
+                state.tempCircle = undefined;
                 state.isDrawing = false;
             }
 
-            // 处理选中矩形的更新
-            if (state.tempSelectedRect && state.selectedRectId) {
-                // 更新原始矩形数据
-                const index = state.drawedShapes.findIndex(s => s.id === state.selectedRectId);
+            // 处理选中圆形的更新
+            if (state.tempSelectedCircle && state.selectedCircleId) {
+                // 更新原始圆形数据
+                const index = state.drawedShapes.findIndex(s => s.id === state.selectedCircleId);
                 if (index !== -1) {
                     state.drawedShapes[index] = {
-                        ...state.tempSelectedRect,
+                        ...state.tempSelectedCircle,
                         timestamp: Date.now()
                     };
                 }
 
-                // 重绘所有矩形
+                // 重绘所有圆形
                 state.mainCtx.clearRect(0, 0, state.mainCanvas.width, state.mainCanvas.height);
                 state.mainCtx.putImageData(state.originalCanvasBg!, 0, 0);
                 redrawAllAnnotations(canvasId, state.mainCtx);
 
                 // 清空临时状态
-                state.tempSelectedRect = undefined;
-                state.selectedRectId = undefined;
+                state.tempSelectedCircle = undefined;
+                state.selectedCircleId = undefined;
                 state.activeControl = 'none';
                 state.dragStartPos = undefined;
                 state.tempCtx!.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
@@ -534,7 +497,7 @@ export const useDrawRect = () => {
         });
     };
 
-    // 清空矩形批注
+    // 清空圆形批注
     const clearAnnotations = (
         canvasId: string,
         mainCanvas: HTMLCanvasElement,
@@ -545,7 +508,7 @@ export const useDrawRect = () => {
         clearCommonAnnotations(state, mainCanvas, redrawOriginalContent);
     };
 
-    // 销毁画矩形功能
+    // 销毁画圆功能
     const destroy = (canvasId: string, keepShapes: boolean = true) => {
         const state = canvasStates[canvasId];
         if (state) {
@@ -570,8 +533,8 @@ export const useDrawRect = () => {
         }
     };
 
-    // 获取矩形数据
-    const getShapes = (canvasId?: string): RectShape[] => {
+    // 获取圆形数据
+    const getShapes = (canvasId?: string): CircleShape[] => {
         if (canvasId) {
             const state = canvasStates[canvasId];
             return state ? [...state.drawedShapes] : [];
