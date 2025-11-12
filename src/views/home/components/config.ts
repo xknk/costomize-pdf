@@ -58,6 +58,17 @@ export const fontOptions = [
     { value: 48 },
     { value: 50 },
 ];
+
+// 字体样式选项
+export const fontFamilyOptions = [
+    { label: '宋体', value: 'SimSun, "宋体"' },
+    { label: '黑体', value: 'SimHei, "黑体"' },
+    { label: '微软雅黑', value: 'Microsoft YaHei, "微软雅黑"' },
+    { label: 'Arial', value: 'Arial, sans-serif' },
+    { label: 'Times New Roman', value: 'Times New Roman, serif' },
+    { label: 'Courier New', value: 'Courier New, monospace' },
+];
+
 export const iconOptions = [
     { icon: 'icon-shou', class: 'tree-icon-box', type: 'gesture', title: '手势' },
     { icon: 'icon-bianji', class: 'tree-icon-box', type: 'draw', title: '画笔' },

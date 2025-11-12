@@ -272,7 +272,9 @@ export const useDrawCircle = () => {
         initCtxStyles(mainCtx, state.currentStyle);
         initCtxStyles(tempCtx, state.currentStyle);
 
-        // 重绘已有图形
+        // 重绘已有图形（先清空Canvas并恢复背景，避免在已有图形上重复绘制）
+        mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+        mainCtx.putImageData(originalCanvasBg, 0, 0);
         redrawAllAnnotations(canvasId, mainCtx);
 
         // 鼠标按下事件
@@ -439,6 +441,9 @@ export const useDrawCircle = () => {
             if (state.isDrawing && state.tempCircle) {
                 // 过滤过小的圆
                 if (state.tempCircle.radius > MIN_CIRCLE_RADIUS) {
+                    // 立即清空临时Canvas，避免视觉叠加
+                    state.tempCtx!.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+
                     // 保存圆形
                     state.drawedShapes.push({
                         id: generateId(),

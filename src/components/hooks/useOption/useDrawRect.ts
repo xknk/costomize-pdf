@@ -266,7 +266,9 @@ export const useDrawRect = () => {
         initCtxStyles(mainCtx, state.currentStyle);
         initCtxStyles(tempCtx, state.currentStyle);
 
-        // 重绘已有图形
+        // 重绘已有图形（先清空Canvas并恢复背景，避免在已有图形上重复绘制）
+        mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+        mainCtx.putImageData(originalCanvasBg, 0, 0);
         redrawAllAnnotations(canvasId, mainCtx);
 
         // 鼠标按下事件
@@ -469,6 +471,9 @@ export const useDrawRect = () => {
                 // 过滤过小的矩形
                 if (Math.abs(state.tempRect.width) > MIN_RECT_SIZE &&
                     Math.abs(state.tempRect.height) > MIN_RECT_SIZE) {
+                    // 立即清空临时Canvas，避免视觉叠加
+                    state.tempCtx!.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+
                     // 标准化矩形坐标（确保宽高为正）
                     const x = state.tempRect.width > 0 ? state.tempRect.x : state.tempRect.x + state.tempRect.width;
                     const y = state.tempRect.height > 0 ? state.tempRect.y : state.tempRect.y + state.tempRect.height;

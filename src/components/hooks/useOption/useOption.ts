@@ -2,10 +2,11 @@
 import { useDrawRect } from './useDrawRect';
 import { useDrawCircle } from './useDrawCircle';
 import { useDrawLine } from './useDrawLine';
+import { useDrawText } from './useDrawText';
 import { CanvasBaseStyle } from './common/common';
 
 // 定义绘制模式
-export type DrawMode = 'rect' | 'circle' | 'line' | 'none';
+export type DrawMode = 'rect' | 'circle' | 'line' | 'text' | 'none';
 
 // 定义自定义样式接口（整合所有形状的样式）
 export interface DrawCustomStyle extends Partial<CanvasBaseStyle> {
@@ -61,6 +62,15 @@ export const useDraw = () => {
                 };
                 break;
 
+            case 'text':
+                const textTool = useDrawText();
+                textTool.initDrawingByMouseMove(canvasId, canvas, ctx, customStyle);
+                activeTools[canvasId] = {
+                    mode,
+                    destroy: () => textTool.destroy(canvasId)
+                };
+                break;
+
             case 'none':
                 // 不初始化任何工具
                 activeTools[canvasId] = {
@@ -101,6 +111,9 @@ export const useDraw = () => {
             case 'line':
                 useDrawLine().clearAnnotations(canvasId, canvas, redrawOriginalContent);
                 break;
+            case 'text':
+                useDrawText().clearAnnotations(canvasId, canvas, redrawOriginalContent);
+                break;
         }
     };
 
@@ -118,6 +131,9 @@ export const useDraw = () => {
                     break;
                 case 'line':
                     allShapes.push(...useDrawLine().getShapes(canvasId));
+                    break;
+                case 'text':
+                    allShapes.push(...useDrawText().getShapes(canvasId));
                     break;
             }
         });

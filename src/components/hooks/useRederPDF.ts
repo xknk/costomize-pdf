@@ -55,6 +55,59 @@ export const useRederPdf = () => {
 
 
     /**
+     * @description: 仅重新渲染PDF内容（用于缩放，不销毁批注状态）
+     * @param {number} scale 放大倍数
+     * @return {*}
+     */
+    const rerenderPdfOnly = async (scale: number) => {
+        if (!pdfUrl.value) return;
+
+        const loadingTask = pdfjsLib.getDocument(pdfUrl.value);
+        const pdf = await loadingTask.promise;
+
+        // 循环渲染每一页PDF
+        for (let i = 1; i <= pagesCount.value; i++) {
+            const page = await pdf.getPage(i);
+
+            // 计算PDF页视口
+            const viewport = page.getViewport({ scale });
+
+            // 处理页Canvas
+            const canvasId = `annotation-canvas_${i - 1}`;
+            const canvasSelector = `#${canvasId}`;
+            const canvas = document.querySelector(canvasSelector) as HTMLCanvasElement;
+            if (!canvas) continue; // 如果canvas不存在，跳过
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) continue;
+
+            // 设置Canvas尺寸
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            // 清空Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport,
+            };
+
+            // 渲染当前页PDF
+            await page.render(renderContext).promise;
+
+            // 更新该页的PDF重绘回调（如果存在）
+            const pageState = pageDrawStateMap.get(canvasId);
+            if (pageState) {
+                pageState.redrawOriginalContent = async () => {
+                    await page.render(renderContext).promise;
+                };
+            }
+        }
+    };
+
+
+    /**
      * @description: 渲染PDF + 初始化每一页的绘制功能
      * @param {number} scale 放大倍数
      * @param {DrawMode} defaultMode 绘制默认模式
@@ -80,15 +133,9 @@ export const useRederPdf = () => {
         // 循环渲染每一页PDF
         for (let i = 1; i <= pagesCount.value; i++) {
             const page = await pdf.getPage(i);
-            const containerWidth = containerEl.clientWidth;
 
-            // 计算PDF页视口
-            const originalViewport = page.getViewport({ scale });
-            let actualScale = scale;
-            if (containerWidth && containerWidth < originalViewport.width) {
-                actualScale = scale * (containerWidth / originalViewport.width);
-            }
-            const viewport = page.getViewport({ scale: actualScale });
+            // 计算PDF页视口（直接使用传入的scale，不自动适应容器宽度）
+            const viewport = page.getViewport({ scale });
 
             // 处理页Canvas
             const canvasId = `annotation-canvas_${i - 1}`; // 纯ID
@@ -101,6 +148,10 @@ export const useRederPdf = () => {
             // 设置Canvas尺寸
             canvas.width = viewport.width;
             canvas.height = viewport.height;
+
+            // 清空Canvas（避免旧内容残留）
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
             const renderContext = {
                 canvasContext: ctx,
                 viewport: viewport,
@@ -227,6 +278,7 @@ export const useRederPdf = () => {
     return {
         getPdfUrlFunc,
         rederPdfFunc,
+        rerenderPdfOnly, // 新增：用于缩放的重新渲染
         setGlobalDrawMode,
         clearAllAnnotations,
         destroyAllDrawState,
@@ -235,5 +287,6 @@ export const useRederPdf = () => {
         pagesCount,
         currentGlobalDrawMode,
         getJosn,
+        pageDrawStateMap, // 导出页面状态，用于缩放时重绘
     };
 };

@@ -21,3 +21,12 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+文档使用指南.txt
+ANALYSIS.md
+.gitignore
+QUICKSTART.txt
+README_ANALYSIS.md
+SUMMARY.txt
+TEXT_ANNOTATION_GUIDE.md
+CANVAS_ZOOM_INTEGRATION.md
+FINAL_REPORT.txt

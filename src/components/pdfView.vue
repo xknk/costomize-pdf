@@ -1,6 +1,6 @@
 <template>
     <div class="pdf-view-box" ref="pageRefs">
-        <div class="pdf-view-reder-box" @touchstart="() => {}" @touchmove="() => {}">
+        <div class="pdf-view-reder-box">
             <!-- 每页Canvas容器，确保居中布局 -->
             <div class="canvas-wrapper" v-for="(pdf, index) in pagesCount" :key="index">
                 <canvas
@@ -66,7 +66,7 @@ const props = defineProps({
             controlSize: number;
         },
         default: () => ({
-            type: "rect",
+            type: "text",
             strokeStyle: "#ff0000",
             fillStyle: "rgba(255, 0, 0, 0.1)",
             lineWidth: 2,
@@ -93,16 +93,25 @@ const pageRefs = ref<any>(null);
 const currenPage = ref<number | string>(pageNum.value);
 const canvasRefs = ref<Record<string, HTMLCanvasElement>>({});
 
+// 全局缩放状态
+const currentScale = ref<number>(scale.value); // 当前PDF.js渲染的真实scale
+const previewScale = ref<number>(scale.value); // CSS transform的预览scale
+const isZooming = ref<boolean>(false); // 是否正在缩放中
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 3;
+
 // 获取PDF渲染相关方法
 const {
     getPdfUrlFunc,
     rederPdfFunc,
+    rerenderPdfOnly, // 用于缩放的重新渲染
     pagesCount,
     setPageFunc,
     getJosn,
     setGlobalDrawMode,
     clearAllAnnotations,
     destroyAllDrawState,
+    pageDrawStateMap, // 获取页面状态
 }: any = useRederPdf();
 
 // 获取所有绘制数据
@@ -124,15 +133,160 @@ const getCanvasFunc = (event: any) => {
     }
 };
 
+// 应用CSS transform缩放（即时反馈，丝滑）
+const applyPreviewTransform = () => {
+    const relativeScale = previewScale.value / currentScale.value;
+
+    Object.values(canvasRefs.value).forEach((canvas) => {
+        canvas.style.transform = `scale(${relativeScale})`;
+        canvas.style.transformOrigin = 'top left';
+    });
+};
+
+// 移除CSS transform
+const removePreviewTransform = () => {
+    Object.values(canvasRefs.value).forEach((canvas) => {
+        canvas.style.transform = '';
+    });
+};
+
+// 使用PDF.js重新渲染（后台渲染，完成后无缝切换）
+const rerenderPdfWithNewScale = async () => {
+    if (isZooming.value) return; // 防止重复渲染
+
+    isZooming.value = true;
+    const targetScale = previewScale.value; // 使用预览的scale作为目标
+    console.log(`🎨 后台渲染PDF，从 ${currentScale.value.toFixed(2)} 到 ${targetScale.toFixed(2)}`);
+
+    try {
+        // 仅重新渲染PDF，不销毁批注工具状态
+        await rerenderPdfOnly(targetScale);
+
+        // 更新当前真实scale
+        currentScale.value = targetScale;
+
+        // 移除CSS transform（因为现在PDF已经是新的scale了）
+        removePreviewTransform();
+
+        // 重新获取Canvas引用
+        setTimeout(() => {
+            getCanvasFunc(null);
+            console.log('✅ PDF渲染完成，已切换到清晰版本');
+        }, 50);
+    } catch (error) {
+        console.error('PDF渲染失败:', error);
+    } finally {
+        isZooming.value = false;
+    }
+};
+
+// 防抖的重新渲染函数（停止滚动300ms后执行）
+const debouncedRerender = debounce(rerenderPdfWithNewScale, 300);
+
+// 处理缩放（滚轮或触摸）
+const handleZoom = (delta: number, event: WheelEvent | TouchEvent) => {
+    event.preventDefault();
+
+    // 计算新的缩放比例
+    const scaleFactor = delta > 0 ? 0.9 : 1.1; // 10%的缩放步长
+    let newScale = currentScale.value * scaleFactor;
+
+    // 限制缩放范围
+    newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+
+    // 如果缩放比例变化太小，直接返回
+    if (Math.abs(newScale - currentScale.value) < 0.01) return;
+
+    console.log(`🔍 缩放至: ${(newScale * 100).toFixed(0)}%`);
+
+    // 更新缩放比例
+    currentScale.value = newScale;
+
+    // 防抖渲染（停止滚动后才重新渲染）
+    debouncedRerender();
+};
+
+// 绑定滚轮事件到容器
+const bindWheelZoomToContainer = () => {
+    const container = pageRefs.value;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+        // 检查是否在canvas区域（可选，也可以改成总是响应）
+        const target = e.target as HTMLElement;
+        const isCanvas = target.classList.contains('annotation-canvas') ||
+                        target.closest('.pdf-view-reder-box');
+
+        if (isCanvas && e.ctrlKey) { // 按住Ctrl键时缩放，避免干扰正常滚动
+            handleZoom(e.deltaY, e);
+        }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+        container.removeEventListener('wheel', handleWheel);
+    };
+};
+
+// 移动端触摸缩放
+let lastTouchDistance = 0;
+const bindTouchZoomToContainer = () => {
+    const container = pageRefs.value;
+    if (!container) return;
+
+    const getDistance = (touch1: Touch, touch2: Touch) => {
+        const dx = touch2.clientX - touch1.clientX;
+        const dy = touch2.clientY - touch1.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+        if (e.touches.length === 2) {
+            lastTouchDistance = getDistance(e.touches[0], e.touches[1]);
+        }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+        if (e.touches.length === 2 && lastTouchDistance > 0) {
+            e.preventDefault();
+
+            const currentDistance = getDistance(e.touches[0], e.touches[1]);
+            const delta = currentDistance - lastTouchDistance;
+
+            handleZoom(-delta, e); // 负号是因为手势方向相反
+
+            lastTouchDistance = currentDistance;
+        }
+    };
+
+    const handleTouchEnd = () => {
+        lastTouchDistance = 0;
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+        container.removeEventListener('touchstart', handleTouchStart);
+        container.removeEventListener('touchmove', handleTouchMove);
+        container.removeEventListener('touchend', handleTouchEnd);
+    };
+};
+
 // 初始化函数
 const initFunc = async () => {
     if (!url.value) return;
 
+    // 同步初始缩放比例
+    currentScale.value = scale.value;
+
     // 加载PDF
     await getPdfUrlFunc(url.value);
     console.log(drawConfig.value);
-    // 渲染PDF并应用绘制配置
-    await rederPdfFunc(scale.value, drawConfig.value.type, {
+    // 渲染PDF并应用绘制配置（使用当前缩放比例）
+    await rederPdfFunc(currentScale.value, drawConfig.value.type, {
         strokeStyle: drawConfig.value.strokeStyle,
         rectFillStyle: drawConfig.value.fillStyle,
         circleFillStyle: drawConfig.value.fillStyle,
@@ -195,13 +349,27 @@ watch(pageNum, (newVal) => {
 });
 
 // 组件挂载时初始化
+let cleanupZoomWheel: (() => void) | undefined;
+let cleanupZoomTouch: (() => void) | undefined;
+
 onMounted(() => {
     initFunc();
+
+    // 等待DOM渲染完成后绑定缩放事件
+    setTimeout(() => {
+        cleanupZoomWheel = bindWheelZoomToContainer();
+        cleanupZoomTouch = bindTouchZoomToContainer();
+        console.log('✅ 全局缩放功能已启用');
+    }, 500);
 });
 
 // 组件卸载时清理资源
 onUnmounted(() => {
     destroyAllDrawState();
+
+    // 清理缩放事件监听
+    if (cleanupZoomWheel) cleanupZoomWheel();
+    if (cleanupZoomTouch) cleanupZoomTouch();
 });
 
 // 对外暴露方法
@@ -218,18 +386,21 @@ defineExpose({
     height: 100%;
     display: flex;
     justify-content: center;
-    overflow-y: auto;
+    overflow: auto; /* 改为auto，允许横向和纵向滚动 */
     padding: 16px;
     box-sizing: border-box;
 }
 
 .pdf-view-reder-box {
-    width: 100%;
-    max-width: 800px; /* 限制最大宽度，优化大屏显示 */
+    width: fit-content; /* 改为fit-content，根据内容自动调整 */
+    min-width: 100%; /* 至少占满容器宽度 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .canvas-wrapper {
-    width: 100%;
+    width: fit-content; /* 改为fit-content，根据canvas实际尺寸 */
     display: flex;
     justify-content: center;
     margin-bottom: 16px; /* 页间距 */
@@ -237,8 +408,10 @@ defineExpose({
 }
 
 .annotation-canvas {
-    max-width: 100%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: block;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    cursor: crosshair;
+    background: white;
 }
 
 .scroll-handle {

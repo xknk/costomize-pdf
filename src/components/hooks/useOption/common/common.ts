@@ -1,12 +1,14 @@
 // hooks/useOption/common/common.ts
 /* 修正坐标计算，解决偏移问题 */
+import { useCanvasZoom } from '../useCanvasZoom';
+
 export interface eTs {
     clientX: number;
     clientY: number;
     target: HTMLCanvasElement;
 }
 
-// 扩展样式接口，包含控制点样式
+// 扩展样式接口，包含控制点样式和文字样式
 export interface CanvasBaseStyle {
     strokeStyle: string;
     lineWidth: number;
@@ -15,6 +17,11 @@ export interface CanvasBaseStyle {
     controlFillStyle: string;    // 新增：控制点填充色
     controlStrokeStyle: string;  // 新增：控制点边框色
     controlSize: number;         // 新增：控制点大小
+    textColor?: string;          // 新增：文字颜色
+    fontSize?: number;           // 新增：字体大小
+    fontFamily?: string;         // 新增：字体样式
+    textBold?: boolean;          // 新增：是否粗体
+    textItalic?: boolean;        // 新增：是否斜体
 }
 
 // 公共状态类型
@@ -107,16 +114,23 @@ export const initCtxStyles = (
     ctx.globalCompositeOperation = 'source-over';
 };
 
-// 获取Canvas内坐标
-export const getCanvasPos = (e: eTs, canvas: HTMLCanvasElement) => {
+// 获取Canvas内坐标（考虑缩放）
+export const getCanvasPos = (e: eTs, canvas: HTMLCanvasElement, canvasId?: string) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
-    return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY
-    };
+    // 先计算基本坐标
+    const baseX = (e.clientX - rect.left) * scaleX;
+    const baseY = (e.clientY - rect.top) * scaleY;
+
+    // 如果提供了canvasId，应用缩放转换
+    if (canvasId) {
+        const { screenToCanvas } = useCanvasZoom();
+        return screenToCanvas(canvasId, baseX, baseY);
+    }
+
+    return { x: baseX, y: baseY };
 };
 
 // 公共清空逻辑
