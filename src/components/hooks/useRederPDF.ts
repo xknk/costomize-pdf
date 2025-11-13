@@ -57,13 +57,17 @@ export const useRederPdf = () => {
     /**
      * @description: 仅重新渲染PDF内容（用于缩放，不销毁批注状态）
      * @param {number} scale 放大倍数
+     * @param {number} oldScale 旧的放大倍数
      * @return {*}
      */
-    const rerenderPdfOnly = async (scale: number) => {
+    const rerenderPdfOnly = async (scale: number, oldScale?: number) => {
         if (!pdfUrl.value) return;
 
         const loadingTask = pdfjsLib.getDocument(pdfUrl.value);
         const pdf = await loadingTask.promise;
+
+        // 计算缩放比例（用于缩放批注坐标）
+        const scaleRatio = oldScale ? scale / oldScale : 1;
 
         // 循环渲染每一页PDF
         for (let i = 1; i <= pagesCount.value; i++) {
@@ -80,6 +84,10 @@ export const useRederPdf = () => {
 
             const ctx = canvas.getContext('2d');
             if (!ctx) continue;
+
+            // 保存旧的Canvas尺寸（用于计算缩放比例）
+            const oldWidth = canvas.width;
+            const oldHeight = canvas.height;
 
             // 设置Canvas尺寸
             canvas.width = viewport.width;
@@ -102,8 +110,51 @@ export const useRederPdf = () => {
                 pageState.redrawOriginalContent = async () => {
                     await page.render(renderContext).promise;
                 };
+
+                // 缩放并重绘批注（如果需要）
+                if (scaleRatio !== 1) {
+                    scaleAndRedrawAnnotations(canvasId, scaleRatio);
+                }
             }
         }
+    };
+
+    /**
+     * @description: 缩放并重绘指定页的批注
+     * @param {string} canvasId 页面Canvas ID
+     * @param {number} scaleRatio 缩放比例
+     * @return {*}
+     */
+    const scaleAndRedrawAnnotations = (canvasId: string, scaleRatio: number) => {
+        // 获取所有工具实例
+        const { useDrawRect } = require('./useOption/useDrawRect');
+        const { useDrawCircle } = require('./useOption/useDrawCircle');
+        const { useDrawLine } = require('./useOption/useDrawLine');
+        const { useDrawText } = require('./useOption/useDrawText');
+
+        const allTools = [
+            useDrawRect(),
+            useDrawCircle(),
+            useDrawLine(),
+            useDrawText()
+        ];
+
+        const pageState = pageDrawStateMap.get(canvasId);
+        if (!pageState) return;
+
+        // 缩放所有批注的坐标
+        allTools.forEach(tool => {
+            if (tool.scaleAnnotations) {
+                tool.scaleAnnotations(canvasId, scaleRatio);
+            }
+        });
+
+        // 重新绘制所有批注
+        allTools.forEach(tool => {
+            if (tool.redrawAllAnnotations) {
+                tool.redrawAllAnnotations(canvasId, pageState.ctx);
+            }
+        });
     };
 
 

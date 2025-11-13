@@ -1,6 +1,5 @@
 // hooks/useOption/common/common.ts
 /* 修正坐标计算，解决偏移问题 */
-import { useCanvasZoom } from '../useCanvasZoom';
 
 export interface eTs {
     clientX: number;
@@ -51,18 +50,21 @@ export const createTempCanvas = (
 
     // 同步位置和尺寸
     const syncPosAndSize = () => {
-        const displayWidth = mainCanvas.offsetWidth;
-        const displayHeight = mainCanvas.offsetHeight;
-        const { top, left } = getElementRectRelativeToParent(mainCanvas, mainParent);
-
+        // 使用主Canvas的实际尺寸（物理像素）
         tempCanvas.width = mainCanvas.width;
         tempCanvas.height = mainCanvas.height;
-        tempCanvas.style.width = `${displayWidth}px`;
-        tempCanvas.style.height = `${displayHeight}px`;
-        tempCanvas.style.top = `${top}px`;
-        tempCanvas.style.left = `${left}px`;
+
+        // CSS显示尺寸与主Canvas完全一致
+        tempCanvas.style.width = mainCanvas.style.width || `${mainCanvas.offsetWidth}px`;
+        tempCanvas.style.height = mainCanvas.style.height || `${mainCanvas.offsetHeight}px`;
+
+        // 位置完全覆盖主Canvas（相对于父容器）
+        tempCanvas.style.top = '0px';
+        tempCanvas.style.left = '0px';
     };
     syncPosAndSize();
+
+    // 监听主Canvas的尺寸变化
     window.addEventListener('resize', syncPosAndSize);
     const observer = new ResizeObserver(syncPosAndSize);
     observer.observe(mainCanvas);
@@ -114,23 +116,20 @@ export const initCtxStyles = (
     ctx.globalCompositeOperation = 'source-over';
 };
 
-// 获取Canvas内坐标（考虑缩放）
+// 获取Canvas内坐标（考虑CSS transform缩放）
 export const getCanvasPos = (e: eTs, canvas: HTMLCanvasElement, canvasId?: string) => {
     const rect = canvas.getBoundingClientRect();
+
+    // getBoundingClientRect已经考虑了transform，返回的是缩放后的视觉尺寸
+    // 所以我们需要将屏幕坐标转换为Canvas内部坐标
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
-    // 先计算基本坐标
-    const baseX = (e.clientX - rect.left) * scaleX;
-    const baseY = (e.clientY - rect.top) * scaleY;
+    // 计算Canvas内坐标（物理像素）
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
 
-    // 如果提供了canvasId，应用缩放转换
-    if (canvasId) {
-        const { screenToCanvas } = useCanvasZoom();
-        return screenToCanvas(canvasId, baseX, baseY);
-    }
-
-    return { x: baseX, y: baseY };
+    return { x: canvasX, y: canvasY };
 };
 
 // 公共清空逻辑

@@ -584,11 +584,34 @@ export const useDrawRect = () => {
         return Object.values(canvasStates).flatMap(state => state.drawedShapes);
     };
 
+    // 缩放批注坐标（用于PDF缩放）
+    const scaleAnnotations = (canvasId: string, scaleRatio: number) => {
+        const state = canvasStates[canvasId];
+        if (!state || scaleRatio === 1) return;
+
+        // 只缩放已完成的批注（不缩放正在编辑的）
+        state.drawedShapes = state.drawedShapes.map((shape: RectShape) => ({
+            ...shape,
+            x: shape.x * scaleRatio,
+            y: shape.y * scaleRatio,
+            width: shape.width * scaleRatio,
+            height: shape.height * scaleRatio
+        }));
+
+        // 更新原始背景（在缩放后保存新的背景）
+        if (state.originalCanvasBg && state.mainCanvas) {
+            state.originalCanvasBg = state.mainCtx.getImageData(
+                0, 0, state.mainCanvas.width, state.mainCanvas.height
+            );
+        }
+    };
+
     return {
         initDrawingByMouseMove,
         redrawAllAnnotations,
         clearAnnotations,
         destroy,
-        getShapes
+        getShapes,
+        scaleAnnotations
     };
 };
