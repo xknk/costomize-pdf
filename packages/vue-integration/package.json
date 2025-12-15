@@ -1,0 +1,46 @@
+{
+  "name": "@customize-pdf/vue",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Vue 3集成，提供PDFViewer组件和usePDFViewer composable",
+  "main": "./dist/vue.umd.js",
+  "module": "./dist/vue.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/vue.es.js",
+      "require": "./dist/vue.umd.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@customize-pdf/viewer": "workspace:*"
+  },
+  "peerDependencies": {
+    "vue": "^3.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "vite": "^5.0.7",
+    "typescript": "^5.3.3",
+    "vue": "^3.0.0"
+  },
+  "keywords": [
+    "pdf",
+    "vue",
+    "vue3",
+    "component",
+    "composable"
+  ],
+  "license": "MIT"
+}

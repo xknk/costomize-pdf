@@ -3,7 +3,22 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Bash(tree:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(findstr:*)",
+      "Bash(cd:*)",
+      "Bash(git -C \"D:\\自己搭建\\vue\\customize-pdf\" log --oneline -10)",
+      "Bash(git -C \"D:\\自己搭建\\vue\\customize-pdf\" log --oneline -20)",
+      "Bash(git -C \"D:\\自己搭建\\vue\\customize-pdf\" show 5e53137 --stat)",
+      "Bash(git -C \"D:\\自己搭建\\vue\\customize-pdf\" log --all --oneline)",
+      "Bash(git -C \"D:\\自己搭建\\vue\\customize-pdf\" log --format=%B -1 5e53137)",
+      "WebFetch(domain:mozilla.github.io)",
+      "Bash(dir:*)",
+      "Bash(pnpm:*)",
+      "Bash(test:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(copy:*)",
+      "Bash(timeout 5 tail:*)"
     ],
     "deny": [],
     "ask": []

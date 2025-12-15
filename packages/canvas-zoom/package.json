@@ -1,0 +1,40 @@
+{
+  "name": "@customize-pdf/canvas-zoom",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "独立的Canvas缩放管理器，支持三种缩放策略（instant/deferred/hybrid）",
+  "main": "./dist/canvas-zoom.umd.js",
+  "module": "./dist/canvas-zoom.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/canvas-zoom.es.js",
+      "require": "./dist/canvas-zoom.umd.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "tsc && vite build",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "vite": "^5.0.7",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  },
+  "keywords": [
+    "canvas",
+    "zoom",
+    "pinch",
+    "gesture",
+    "transform"
+  ],
+  "license": "MIT"
+}

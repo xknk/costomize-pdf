@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "declarationDir": "./dist",
+    "emitDeclarationOnly": true,
+    "baseUrl": ".",
+    "paths": {
+      "@customize-pdf/core": ["../core/src"],
+      "@customize-pdf/canvas-zoom": ["../canvas-zoom/src"],
+      "@customize-pdf/canvas-annotations": ["../canvas-annotations/src"]
+    },
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*", "../core/src/**/*", "../canvas-zoom/src/**/*", "../canvas-annotations/src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
+}

@@ -1,0 +1,45 @@
+{
+  "name": "@customize-pdf/viewer",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "完整的PDF查看器，集成core、zoom、annotations模块",
+  "main": "./dist/viewer.umd.js",
+  "module": "./dist/viewer.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/viewer.es.js",
+      "require": "./dist/viewer.umd.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@customize-pdf/core": "workspace:*",
+    "@customize-pdf/canvas-zoom": "workspace:*",
+    "@customize-pdf/canvas-annotations": "workspace:*"
+  },
+  "peerDependencies": {
+    "pdfjs-dist": "^2.16.0 || ^3.0.0",
+    "pdf-lib": "^1.17.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.7",
+    "typescript": "^5.3.3"
+  },
+  "keywords": [
+    "pdf",
+    "viewer",
+    "document"
+  ],
+  "license": "MIT"
+}

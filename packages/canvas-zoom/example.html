@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas Zoom 测试示例</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 20px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .toolbar button {
+      padding: 8px 16px;
+      border: none;
+      background: #007bff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .toolbar button:hover {
+      background: #0056b3;
+    }
+
+    .toolbar select {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .toolbar .scale-display {
+      padding: 8px 12px;
+      background: white;
+      border-radius: 4px;
+      font-weight: 600;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .toolbar .divider {
+      width: 1px;
+      height: 30px;
+      background: #ddd;
+    }
+
+    #container {
+      width: 100%;
+      height: 600px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      overflow: auto;
+      position: relative;
+      background: #fafafa;
+    }
+
+    #content {
+      width: 800px;
+      height: 1000px;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 40px;
+    }
+
+    #content h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    #content p {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 15px;
+    }
+
+    .grid {
+      background-image:
+        linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+
+    .info {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+
+    .info h3 {
+      color: #1976d2;
+      margin-bottom: 10px;
+    }
+
+    .info ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .info li {
+      padding: 5px 0;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>@customize-pdf/canvas-zoom 测试示例</h1>
+
+  <div class="toolbar">
+    <button id="zoomIn">放大 (+)</button>
+    <button id="zoomOut">缩小 (-)</button>
+    <div class="divider"></div>
+    <button id="fitWidth">适应宽度</button>
+    <button id="fitPage">适应页面</button>
+    <button id="reset">重置 (100%)</button>
+    <div class="divider"></div>
+    <label for="strategy">策略：</label>
+    <select id="strategy">
+      <option value="instant">Instant (即时)</option>
+      <option value="deferred">Deferred (延迟)</option>
+      <option value="hybrid" selected>Hybrid (混合)</option>
+    </select>
+    <div class="divider"></div>
+    <span class="scale-display" id="scale">100%</span>
+  </div>
+
+  <div id="container">
+    <div id="content" class="grid">
+      <h1>Canvas 缩放测试</h1>
+
+      <p>
+        这是一个测试 @customize-pdf/canvas-zoom 模块的示例页面。
+        你可以使用以下方式进行缩放：
+      </p>
+
+      <div class="info">
+        <h3>🖱️ 桌面端操作</h3>
+        <ul>
+          <li>✅ Ctrl + 鼠标滚轮 - 在鼠标位置缩放</li>
+          <li>✅ 工具栏按钮 - 从中心点缩放</li>
+          <li>✅ 双击 - 在点击位置放大/缩小（如启用）</li>
+        </ul>
+      </div>
+
+      <div class="info">
+        <h3>📱 移动端操作</h3>
+        <ul>
+          <li>✅ 双指捏合 - 触摸缩放</li>
+          <li>✅ 工具栏按钮 - 从中心点缩放</li>
+        </ul>
+      </div>
+
+      <div class="info">
+        <h3>🎯 三种缩放策略</h3>
+        <ul>
+          <li><strong>Instant (即时)</strong> - 纯CSS缩放，永不卡顿，大倍数可能模糊</li>
+          <li><strong>Deferred (延迟)</strong> - 延迟重渲染，总是高清，有延迟感</li>
+          <li><strong>Hybrid (混合)</strong> - 平衡策略，小范围用CSS，大范围重渲染（推荐）</li>
+        </ul>
+      </div>
+
+      <p>
+        当前模块支持无框架使用，可以独立集成到任何项目中。
+        完整的TypeScript类型定义确保了良好的开发体验。
+      </p>
+
+      <p>
+        你可以通过切换不同的缩放策略来体验它们的差异。
+        Hybrid策略在缩放超过30%时会触发重渲染（在实际PDF场景中会重新渲染PDF页面）。
+      </p>
+
+      <p style="margin-top: 100px; color: #999;">
+        这是一个较长的页面，用于测试滚动和缩放的配合。
+        继续向下滚动查看更多内容...
+      </p>
+
+      <p style="margin-top: 200px; color: #999;">
+        页面底部内容。测试缩放时的布局保持。
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    // 注意：在实际使用时，应该从npm包导入
+    // import { ZoomManager } from '@customize-pdf/canvas-zoom';
+
+    // 这里我们模拟导入（需要先构建包）
+    console.log('Canvas Zoom 示例加载完成');
+    console.log('使用 Ctrl + 滚轮 进行缩放');
+    console.log('或使用工具栏按钮');
+
+    // 创建缩放管理器
+    let zoomManager;
+
+    function initZoomManager(strategy) {
+      // 如果已存在，先销毁
+      if (zoomManager) {
+        zoomManager.destroy();
+      }
+
+      // 这里需要实际导入并使用 ZoomManager
+      // zoomManager = new ZoomManager({
+      //   container: '#container',
+      //   strategy: strategy,
+      //   gestures: {
+      //     wheel: true,
+      //     pinch: true,
+      //     doubleClick: false
+      //   }
+      // });
+
+      // // 监听缩放变化
+      // zoomManager.on('zoom-change', (event) => {
+      //   const percent = Math.round(event.state.scale * 100);
+      //   document.getElementById('scale').textContent = `${percent}%`;
+      // });
+
+      // // 监听重渲染（deferred和hybrid策略）
+      // zoomManager.on('rerender-start', (event) => {
+      //   console.log('重渲染开始，scale:', event.state.scale);
+      //   // 在实际PDF场景中，这里会重新渲染PDF页面
+      //   // 模拟渲染完成
+      //   setTimeout(() => {
+      //     zoomManager.onRerenderComplete(event.state.scale);
+      //   }, 100);
+      // });
+
+      console.log(`缩放管理器已创建，策略: ${strategy}`);
+    }
+
+    // 初始化
+    const initialStrategy = document.getElementById('strategy').value;
+    initZoomManager(initialStrategy);
+
+    // 绑定工具栏按钮
+    document.getElementById('zoomIn').onclick = () => {
+      // zoomManager?.zoomIn();
+      console.log('放大');
+    };
+
+    document.getElementById('zoomOut').onclick = () => {
+      // zoomManager?.zoomOut();
+      console.log('缩小');
+    };
+
+    document.getElementById('fitWidth').onclick = () => {
+      // zoomManager?.fitWidth();
+      console.log('适应宽度');
+    };
+
+    document.getElementById('fitPage').onclick = () => {
+      // zoomManager?.fitPage();
+      console.log('适应页面');
+    };
+
+    document.getElementById('reset').onclick = () => {
+      // zoomManager?.reset();
+      console.log('重置');
+    };
+
+    // 策略切换
+    document.getElementById('strategy').onchange = (e) => {
+      const newStrategy = e.target.value;
+      initZoomManager(newStrategy);
+    };
+
+    // 键盘快捷键
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          // zoomManager?.zoomIn();
+          console.log('快捷键：放大');
+        } else if (e.key === '-') {
+          e.preventDefault();
+          // zoomManager?.zoomOut();
+          console.log('快捷键：缩小');
+        } else if (e.key === '0') {
+          e.preventDefault();
+          // zoomManager?.reset();
+          console.log('快捷键：重置');
+        }
+      }
+    });
+  </script>
+</body>
+</html>

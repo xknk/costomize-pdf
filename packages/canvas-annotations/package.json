@@ -1,0 +1,41 @@
+{
+  "name": "@customize-pdf/canvas-annotations",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "独立的Canvas批注管理器，支持矩形、圆形、线条、文字等7种工具",
+  "main": "./dist/canvas-annotations.umd.js",
+  "module": "./dist/canvas-annotations.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/canvas-annotations.es.js",
+      "require": "./dist/canvas-annotations.umd.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "tsc && vite build",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "vite": "^5.0.7",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  },
+  "keywords": [
+    "canvas",
+    "annotations",
+    "drawing",
+    "tools",
+    "pdf",
+    "xfdf"
+  ],
+  "license": "MIT"
+}

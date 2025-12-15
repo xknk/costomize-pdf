@@ -29,7 +29,8 @@ export default {
 import { ref, toRefs, defineProps, onMounted, onUnmounted, watch } from "vue";
 import { useRederPdf } from "./hooks/useRederPDF";
 import { useMountObserve } from "./hooks/useMountObserve";
-import { debounce } from "@/utils";
+import { debounce, throttle } from "@/utils";
+import * as pdfjsLib from "pdfjs-dist";
 
 // 定义绘制样式配置接口
 interface DrawStyleConfig {
@@ -95,8 +96,7 @@ const canvasRefs = ref<Record<string, HTMLCanvasElement>>({});
 
 // 全局缩放状态
 const currentScale = ref<number>(scale.value); // 当前实际的缩放比例（用于CSS transform）
-const baseScale = ref<number>(scale.value); // 基础PDF渲染的scale（不变）
-const isRerenderingPdf = ref<boolean>(false); // 是否正在重渲染PDF
+const baseScale = ref<number>(scale.value); // 基础PDF渲染的scale（保持不变）
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
 
@@ -112,6 +112,7 @@ const {
     clearAllAnnotations,
     destroyAllDrawState,
     pageDrawStateMap, // 获取页面状态
+    pdfUrl, // 获取PDF URL
 }: any = useRederPdf();
 
 // 获取所有绘制数据
@@ -133,118 +134,100 @@ const getCanvasFunc = (event: any) => {
     }
 };
 
-// 应用CSS transform缩放（即时反馈，丝滑，无闪屏）
+// 应用CSS transform缩放（类似PDF.js官方，纯CSS缩放，永不卡顿）
 const applyScaleTransform = () => {
     const relativeScale = currentScale.value / baseScale.value;
 
-    Object.values(canvasRefs.value).forEach((canvas) => {
-        const wrapper = canvas.parentElement;
-        if (!wrapper) return;
+    // 使用 requestAnimationFrame 优化DOM操作，减少卡顿
+    requestAnimationFrame(() => {
+        Object.values(canvasRefs.value).forEach((canvas) => {
+            const wrapper = canvas.parentElement;
+            if (!wrapper) return;
 
-        // 对主Canvas应用缩放
-        canvas.style.transform = `scale(${relativeScale})`;
-        canvas.style.transformOrigin = 'top left';
+            // 对主Canvas应用缩放
+            canvas.style.transform = `scale(${relativeScale})`;
+            canvas.style.transformOrigin = 'top left';
 
-        // 临时Canvas应用相同的transform（激活批注也要跟着缩放）
-        const tempCanvas = wrapper.querySelector(`#temp-${canvas.id}`) as HTMLCanvasElement;
-        if (tempCanvas) {
-            tempCanvas.style.transform = `scale(${relativeScale})`;
-            tempCanvas.style.transformOrigin = 'top left';
-        }
+            // 临时Canvas应用相同的transform
+            const tempCanvas = wrapper.querySelector(`#temp-${canvas.id}`) as HTMLCanvasElement;
+            if (tempCanvas) {
+                tempCanvas.style.transform = `scale(${relativeScale})`;
+                tempCanvas.style.transformOrigin = 'top left';
+            }
 
-        // 调整wrapper的底部间距，补偿transform导致的视觉变化
-        // 原始高度 * (relativeScale - 1) = 视觉上增加的高度
-        const originalHeight = canvas.offsetHeight / relativeScale; // 还原为未缩放时的高度
-        const visualHeightIncrease = originalHeight * (relativeScale - 1);
-
-        // 设置margin-bottom来补偿视觉变化，保持瀑布流间距
-        wrapper.style.marginBottom = `${16 + visualHeightIncrease}px`;
+            // 调整wrapper的底部间距，保持布局
+            const originalHeight = canvas.offsetHeight / relativeScale;
+            const visualHeightIncrease = originalHeight * (relativeScale - 1);
+            wrapper.style.marginBottom = `${16 + visualHeightIncrease}px`;
+        });
     });
 };
 
 // 移除CSS transform
 const removeScaleTransform = () => {
-    Object.values(canvasRefs.value).forEach((canvas) => {
-        const wrapper = canvas.parentElement;
-        if (!wrapper) return;
+    // 使用 requestAnimationFrame 优化DOM操作
+    requestAnimationFrame(() => {
+        Object.values(canvasRefs.value).forEach((canvas) => {
+            const wrapper = canvas.parentElement;
+            if (!wrapper) return;
 
-        canvas.style.transform = '';
+            canvas.style.transform = '';
 
-        const tempCanvas = wrapper.querySelector(`#temp-${canvas.id}`) as HTMLCanvasElement;
-        if (tempCanvas) {
-            tempCanvas.style.transform = '';
-        }
+            const tempCanvas = wrapper.querySelector(`#temp-${canvas.id}`) as HTMLCanvasElement;
+            if (tempCanvas) {
+                tempCanvas.style.transform = '';
+            }
 
-        // 恢复原始间距
-        wrapper.style.marginBottom = '16px';
+            // 恢复原始间距
+            wrapper.style.marginBottom = '16px';
+        });
     });
 };
 
-// 智能重渲染高清PDF（避免闪屏）
-const rerenderPdfForClearView = async () => {
-    if (isRerenderingPdf.value) return;
+// 待应用的缩放比例（用于批量更新）
+let targetScaleValue = scale.value;
+let rafId: number | null = null;
 
-    const targetScale = currentScale.value;
-    const scaleRatio = targetScale / baseScale.value;
-
-    // 如果缩放比例接近1.0，不需要重渲染
-    if (Math.abs(scaleRatio - 1.0) < 0.1) {
-        console.log('📊 缩放比例接近1.0，跳过重渲染');
-        return;
+// 批量应用缩放变换（使用RAF优化）
+const scheduleScaleUpdate = () => {
+    // 如果已经有待处理的RAF，取消它
+    if (rafId !== null) {
+        cancelAnimationFrame(rafId);
     }
 
-    isRerenderingPdf.value = true;
-    console.log(`🎨 开始重渲染高清PDF，scale: ${targetScale.toFixed(2)}`);
-
-    try {
-        // 移除CSS transform
-        removeScaleTransform();
-
-        // 重新渲染PDF并缩放批注坐标
-        await rerenderPdfOnly(targetScale, baseScale.value);
-
-        // 更新基础scale
-        baseScale.value = targetScale;
-
-        // 重新获取Canvas引用
-        setTimeout(() => {
-            getCanvasFunc(null);
-            console.log('✅ 高清PDF渲染完成');
-        }, 50);
-    } catch (error) {
-        console.error('❌ PDF重渲染失败:', error);
-        // 失败时恢复CSS transform
+    // 安排新的RAF
+    rafId = requestAnimationFrame(() => {
+        currentScale.value = targetScaleValue;
         applyScaleTransform();
-    } finally {
-        isRerenderingPdf.value = false;
-    }
+        rafId = null;
+    });
 };
 
-// 防抖的重渲染函数（停止缩放1秒后执行）
-const debouncedRerender = debounce(rerenderPdfForClearView, 1000);
-
-// 处理缩放（滚轮或触摸）- 完全实时，无延迟
+// 处理缩放（类似PDF.js官方，纯CSS缩放，永不卡顿）
 const handleZoom = (delta: number, event: WheelEvent | TouchEvent) => {
     event.preventDefault();
 
+    // 🔑 关键改进：移除重渲染期间的阻止逻辑，永远允许缩放
+    // 这样即使在某些操作期间，用户也能流畅缩放
+
     // 计算新的缩放比例
-    const scaleFactor = delta > 0 ? 0.95 : 1.05; // 5%的缩放步长
-    let newScale = currentScale.value * scaleFactor;
+    const scaleFactor = delta > 0 ? 0.92 : 1.08; // 8%的缩放步长
+    let newScale = targetScaleValue * scaleFactor;
 
     // 限制缩放范围
     newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
 
     // 如果缩放比例变化太小，直接返回
-    if (Math.abs(newScale - currentScale.value) < 0.001) return;
+    if (Math.abs(newScale - targetScaleValue) < 0.001) return;
 
-    // 立即更新缩放比例
-    currentScale.value = newScale;
+    // 更新目标缩放比例
+    targetScaleValue = newScale;
 
-    // 立即应用CSS transform（丝滑缩放）
-    applyScaleTransform();
+    // 使用RAF批量更新，避免每次滚轮都触发DOM操作
+    scheduleScaleUpdate();
 
-    // 停止缩放1秒后，重新渲染高清版本
-    debouncedRerender();
+    // 注意：这里不再触发自动重渲染！
+    // 完全使用CSS transform，类似PDF.js官方行为
 };
 
 // 绑定滚轮事件到容器
@@ -406,13 +389,19 @@ onMounted(() => {
     setTimeout(() => {
         cleanupZoomWheel = bindWheelZoomToContainer();
         cleanupZoomTouch = bindTouchZoomToContainer();
-        console.log('✅ 智能缩放系统已启用（实时CSS transform + 延迟高清重渲染）');
+        console.log('✅ PDF.js风格缩放已启用（纯CSS transform，永不卡顿）');
     }, 500);
 });
 
 // 组件卸载时清理资源
 onUnmounted(() => {
     destroyAllDrawState();
+
+    // 取消pending的RAF
+    if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+    }
 
     // 清理缩放事件监听
     if (cleanupZoomWheel) cleanupZoomWheel();
