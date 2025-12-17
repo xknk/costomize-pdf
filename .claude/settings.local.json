@@ -18,7 +18,19 @@
       "Bash(ls:*)",
       "Bash(cat:*)",
       "Bash(copy:*)",
-      "Bash(timeout 5 tail:*)"
+      "Bash(timeout 5 tail:*)",
+      "Bash(del /F srcApp.vue)",
+      "Bash(del /F srcmain.ts)",
+      "Bash(rd /S /Q srcviews)",
+      "Bash(del /F srccomponentspdfView.vue)",
+      "Bash(del /F srccomponentsSimplePDFViewer.vue)",
+      "Bash(del /F srccomponentsTestPDFViewer.vue)",
+      "Bash(del /F srccomponentsCompletePDFViewer.vue)",
+      "Bash(del /F srccomponentsFullFeaturePDFViewer.vue)",
+      "Bash(del /F srccomponentsNewPDFViewer.vue)",
+      "Bash(del /F ZOOM_EXAMPLE.vue)",
+      "Bash(npm run dev)",
+      "Bash(netstat:*)"
     ],
     "deny": [],
     "ask": []
